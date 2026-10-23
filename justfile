@@ -14,6 +14,7 @@ check-generated:
 
 test: check-generated
     python3 -m pytest -q test
+    cd crates/carla_physics_spec && cargo test -q
 
 build:
     #!/usr/bin/env bash

@@ -48,13 +48,17 @@ SECTIONS = {
     "sensor_kit": (("mount",), ()),
     # Per simulator: what only that simulator's model needs.
     "isaac": ((), ("physx",)),
-    "carla": ((), ("physics", "pedal_maps")),
+    "carla": ((), ("physics",)),
 }
 # isaac.physx: the PhysX vehicle's solver settings
 PHYSX_KEYS = ("substeps", "substep_threshold_speed", "min_active_slip_denominator",
               "min_passive_slip_denominator", "min_lateral_slip_denominator",
               "sticky_tire_threshold_speed", "sticky_tire_threshold_time",
               "longitudinal_sticky_tire_damping", "lateral_sticky_tire_damping")
+# carla.physics: what CARLA's PhysX vehicle needs that the physics sections do not say (the
+# body's own facts and CARLA's scales); the rest of carla_physics.yaml derives from the spec
+CARLA_PHYSICS_KEYS = ("tire_friction_scale", "drag_area", "body_com", "rear_axle_x",
+                      "max_steer_angle_deg", "engine_moi", "engine_damping")
 # A sensor's carla: the key acb_bridge spawns it under (a TF frame of the URDF), the CARLA
 # blueprint, and the attributes not derived from the shared fields.
 CARLA_SENSOR_KEYS = ("key", "blueprint", "attributes")
@@ -74,6 +78,7 @@ SUBSECTIONS = {
     ("powertrain", "traction_control"): ("enabled", "slip_limit", "slip_reapply",
                                          "release_rate", "apply_rate"),
     ("isaac", "physx"): PHYSX_KEYS,
+    ("carla", "physics"): CARLA_PHYSICS_KEYS,
 }
 # What an `ev` powertrain cannot do without
 EV_REQUIRED = ("gear_ratio", "motor_peak_torque", "motor_peak_power", "motor_max_rpm")

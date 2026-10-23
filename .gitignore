@@ -14,3 +14,5 @@ __pycache__/
 # BEGIN colcon-cargo-ros2
 .cargo/config.toml
 # END colcon-cargo-ros2
+crates/*/target/
+crates/*/Cargo.lock

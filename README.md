@@ -10,6 +10,8 @@ roadmap 051). Format: [docs/spec-format.md](docs/spec-format.md).
 | `vehicles/` | The specs (`tesla_model3.yaml`) |
 | `sim_vehicle_spec/` | The library: `spec` (load, validate, the geometry, sensors and fingerprints a spec gives), `emit` (how generated files are written), `gen` (this repository's outputs) |
 | `generated/<name>/carla_sensors.yaml` | The sensors acb_bridge spawns on CARLA |
+| `generated/<name>/carla_physics.yaml` | CARLA's physics for the car: the CARLA world server applies it to the ego, acb_bridge applies or reads it back |
+| `sim_vehicle_spec/carla_physics.py`, `crates/carla_physics_spec` | carla_physics.yaml on an actor, in Python (apply, compare), and its types in Rust |
 | `catalogs/vehicles.xosc` | The SSv2 vehicle catalog, one entry per spec |
 
 Each consumer generates its own files from a spec with this library, in its own repository:

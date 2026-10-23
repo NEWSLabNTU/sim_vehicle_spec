@@ -133,6 +133,19 @@ isaac:
     longitudinal_sticky_tire_damping: 200.0
     lateral_sticky_tire_damping: 20.0
 
+carla:
+  # What CARLA's PhysX vehicle needs beyond the sections above (roadmap 051 K3): the body's own
+  # facts and CARLA's scales. carla_physics.yaml derives everything else from the spec.
+  physics:
+    tire_friction_scale: 1.2     # CARLA's tire_friction for a tire friction of 1.0
+    drag_area: 3.219             # m^2: what CARLA multiplies its drag coefficient by
+    body_com: [0.029, 0.0, 0.744]  # m, actor frame: the centre of mass UE computes for the body
+    rear_axle_x: -1.386          # m, actor frame (measured, swb_carla_world's blueprint table)
+    max_steer_angle_deg: 70.0    # the front wheels' limit, which acb_bridge's steering map assumes
+    # CARLA's engine is a combustion engine's: an EV motor's rotor is light and drags little.
+    engine_moi: 0.05             # kg m^2
+    engine_damping: 0.01         # every damping rate of CARLA's engine
+
 # The sensor kit: base_link -> sensor_kit_base_link, then each sensor's mount in the kit.
 # Mounts are what csb's Isaac ego uses today (acb's acb_sensor_kit calibration).
 sensor_kit:
@@ -245,4 +258,11 @@ provenance:
   resistance.frontal_area: {assumed: true, basis: "~2.2 m^2, InsideEVs / Engineering Explained estimate (from the Model S's)"}
   suspension: {assumed: true, basis: "a sedan's ride"}
   isaac.physx: {basis: "csb roadmap 043: the braking instability fix"}
+  carla.physics.tire_friction_scale: {basis: "measured (roadmap 051 K3, scripts/carla_step_response.py): 1.2 stops from 100 km/h at full brake in 42.8 m, Isaac's ev on this spec in 42.9 (ABS) to 44.1 (locked); CARLA's own 3.5 stops in 22 m once the brakes can lock the wheels, ~1.7 g"}
+  carla.physics.drag_area: {assumed: true, basis: "UE4's PhysX vehicle drags with ChassisWidth x ChassisHeight; the body's box, 2.163 x 1.488 m"}
+  carla.physics.body_com: {assumed: true, basis: "the centre of the body's box (CARLA does not expose the centre UE computes from the collision)"}
+  carla.physics.rear_axle_x: {basis: "measured: swb_carla_world blueprint_boxes_0.9.16.yaml axles"}
+  carla.physics.max_steer_angle_deg: {basis: "CARLA 0.9.16 vehicle.tesla.model3 front wheels; acb_bridge's steering map is built on it"}
+  carla.physics.engine_moi: {basis: "measured (roadmap 051 K3): with 0.05 and engine_damping 0.01, 0-100 km/h in 6.3 s against Isaac's 6.45 (CARLA's own 1.0 and 0.15-2.0: 10.9 s, and a 6.3 m/s^2 coast at 25 m/s through the 10:1 reduction)"}
+  carla.physics.engine_damping: {basis: "measured (roadmap 051 K3): coasting at 25 m/s 0.20 m/s^2 against Isaac's 0.276, the difference CARLA's missing rolling resistance (~0.09)"}
   sensors: {basis: "acb acb_sensor_kit calibration, as csb's Isaac ego mounts it; the carla blocks are acb_bridge's vehicle_config.yaml"}

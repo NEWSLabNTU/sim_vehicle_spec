@@ -28,7 +28,7 @@ Frame: base_link, the rear axle centre on the ground, x forward, y left, z up.
 | `inertia` | yes | below |
 | `wheels`, `tires`, `brakes`, `powertrain`, `resistance`, `steering`, `suspension` | see below | |
 | `isaac` | no | `physx`: the PhysX vehicle's solver settings (below) |
-| `carla` | no | `physics`, `pedal_maps`: CARLA's model (roadmap 051 K3) |
+| `carla` | no | `physics`: what CARLA's model needs beyond the physics sections ("CARLA's physics") |
 | `sensor_kit` | yes | `mount`: base_link -> sensor_kit_base_link |
 | `sensors` | no | name -> sensor, below |
 | `provenance` | no | where numbers come from, below |
@@ -113,6 +113,42 @@ A sensor's CARLA attributes come from the shared fields where they say the same 
 `channels`, `range`, `rotation_frequency` from `rate_hz`, `upper_fov` and `lower_fov` from
 `vertical_fov`; camera: `image_size_x`, `image_size_y`, `fov`, `sensor_tick` from `rate_hz`;
 imu, gnss: `sensor_tick` from `rate_hz`), then from `carla.attributes`.
+
+## CARLA's physics
+
+`generated/<name>/carla_physics.yaml`, when the spec has `carla.physics`: CARLA's
+`VehiclePhysicsControl` for the car, in SI units, wheels front left, front right, rear left,
+rear right. The CARLA world server applies it to the ego and agent vehicles of its blueprint
+at the spawn (with SSv2), and acb_bridge applies it to the hero on attach (standalone,
+`carla_physics_mode:=apply`) or reads it back (`verify`). CARLA applies physics at its next
+tick: a read-back before one returns the old. Python: `sim_vehicle_spec.carla_physics`
+(`apply`, `differences`); Rust: the `carla_physics_spec` crate (`crates/`), parsing and the
+comparison, which each consumer maps onto carla-rust.
+
+From the spec: `mass`; `center_of_mass` (CARLA's nudge: the CoM at `com_front_fraction` of
+the wheel base from the rear axle and `com_height` up, less the body's own CoM, both in the
+actor frame); the motor's torque curve (flat `motor_peak_torque` to base speed, then
+`motor_peak_power`, tapering to 0 at `motor_max_rpm`) with `final_ratio` the `gear_ratio`
+and one forward gear; `drag_coefficient` (Cd A over CARLA's drag area); per wheel the tire
+friction (`tires.friction` x `tire_friction_scale`), the PhysX tire stiffnesses,
+`max_brake_torque`, `hold_brake_torque` as the rear wheels' handbrake, the radius;
+`command_lags` (`brakes.dead_time`, `brakes.time_constant`, `powertrain.motor_time_constant`)
+for the vehicle bridge's command path, since CARLA's model has none.
+
+`carla.physics` holds what the spec's sections cannot say:
+
+| key | what |
+|---|---|
+| `tire_friction_scale` | CARLA's tire friction for a tire friction of 1.0 (measured: 1.2 stops from 100 km/h in 42.8 m, as the spec's car does in Isaac) |
+| `drag_area` | m^2, what CARLA multiplies its drag coefficient by |
+| `body_com` | m, actor frame: the CoM UE computes for the body (CARLA does not expose it) |
+| `rear_axle_x` | m, actor frame: the rear axle (swb_carla_world's measured table) |
+| `max_steer_angle_deg` | the front wheels' limit (acb_bridge's steering map assumes it) |
+| `engine_moi`, `engine_damping` | CARLA's engine is a combustion engine's: an EV motor's light rotor and its small drag (measured: 0-100 km/h in 6.3 s, coasting 0.20 m/s^2 at 25 m/s) |
+
+Not modelled by CARLA, and so not in the file: the rear-wheel drive (CARLA drives its own
+differential), ABS, regen and traction control, rolling resistance. `physics_hash` covers
+the physics sections and `carla.physics`: the pedal maps measured on CARLA carry it.
 
 ## The catalog
 

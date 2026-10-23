@@ -230,6 +230,32 @@ class GeneratedTest(unittest.TestCase):
         for name in gen.ASSIGNED:
             self.assertIn(f'"${name}"', xosc)
 
+    def test_carla_physics_is_the_spec_car(self):
+        doc = gen.carla_physics_doc(specmod.load(SPEC))
+        v, w = doc["vehicle"], doc["wheels"]
+        self.assertEqual((v["mass"], v["final_ratio"], v["max_rpm"]), (1760.0, 10.0, 15200.0))
+        # flat to base speed (194 kW / 340 N m), constant power above, zero at max_rpm
+        curve = v["torque_curve"]
+        self.assertEqual(curve[0], [0.0, 340.0])
+        self.assertAlmostEqual(curve[1][0], 194000 / 340 * 60 / (2 * 3.141592653589793), 0)
+        self.assertEqual(curve[-1], [15200.0, 0.0])
+        for rpm, nm in curve[2:-1]:
+            self.assertAlmostEqual(nm * rpm * 2 * 3.141592653589793 / 60, 194000.0, -2)
+        # the CoM 1.412 m ahead of the rear axle (47 % of 3.005), 0.46 up, from the body's own
+        self.assertAlmostEqual(v["center_of_mass"][0], -1.386 + 0.47 * 3.005 - 0.029, 3)
+        self.assertAlmostEqual(v["center_of_mass"][2], 0.46 - 0.744, 3)
+        self.assertEqual([x["tire_friction"] for x in w], [1.2] * 4)
+        self.assertEqual([x["max_handbrake_torque"] for x in w], [0.0, 0.0, 1500.0, 1500.0])
+        self.assertEqual([x["max_steer_angle_deg"] for x in w], [70.0, 70.0, 0.0, 0.0])
+        self.assertEqual(doc["command_lags"], {"brake_dead_time": 0.08,
+                                               "brake_time_constant": 0.06,
+                                               "motor_time_constant": 0.04})
+
+    def test_no_carla_physics_no_file(self):
+        d = yaml.safe_load(SPEC.read_text())
+        del d["carla"]["physics"]
+        self.assertIsNone(gen.carla_physics_doc(specmod.Spec(SPEC, d)))
+
 
 if __name__ == "__main__":
     unittest.main()

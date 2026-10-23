@@ -11,6 +11,7 @@ their own outputs with this library (autoware_sim_vehicle: Autoware's packages;
 autoware_isaac_bridge: the Isaac rig).
 """
 import argparse
+import math
 import sys
 from pathlib import Path
 
@@ -66,6 +67,90 @@ def carla_sensors(spec, header):
         "The sensors acb_bridge spawns on CARLA, keyed by the URDF frame each is mounted at\n"
         "(the mounts come from Autoware's robot_description), with their blueprint attributes.") \
         + emit.yaml_text(doc)
+
+
+# --- CARLA: the physics ------------------------------------------------------------------
+
+def motor_curve(p, points=8):
+    """The ev motor's torque (N m, at the motor) against its speed (rpm): flat to base speed,
+    constant power above it, tapering to 0 over the last 5 % of max_rpm."""
+    peak, power, top = p["motor_peak_torque"], p["motor_peak_power"], p["motor_max_rpm"]
+    base = power / peak * 60 / (2 * math.pi)
+    taper = 0.95 * top
+    curve = [[0.0, peak], [round(base, 1), peak]]
+    for i in range(1, points + 1):
+        rpm = base + (taper - base) * i / points
+        curve.append([round(rpm, 1), round(power / (rpm * 2 * math.pi / 60), 2)])
+    curve.append([round(top, 1), 0.0])
+    return curve
+
+
+def carla_physics_doc(spec):
+    """CARLA's VehiclePhysicsControl for the spec's car, SI units, CARLA's wheel order (front
+    left, front right, rear left, rear right); None when the spec gives CARLA no physics."""
+    cp = spec.section("carla").get("physics")
+    if not cp:
+        return None
+    g, i, w, t = (spec.doc[k] for k in ("geometry", "inertia", "wheels", "tires"))
+    b, p, r = spec.doc["brakes"], spec.doc["powertrain"], spec.section("resistance")
+    if p["model"] != "ev":
+        raise ValueError(f"{spec.path}: carla_physics needs an ev powertrain, not {p['model']!r}")
+    # The CoM from the rear axle (base_link), in the actor frame, less the CoM UE computes for
+    # the body: CARLA's center_of_mass is that nudge (CARLA's y is ROS's -y).
+    com = (cp["rear_axle_x"] + i["com_front_fraction"] * g["wheel_base"],
+           i.get("com_lateral", 0.0), i["com_height"])
+    nudge = [round(c - o, 4) for c, o in zip(com, cp["body_com"])]
+    nudge[1] = -nudge[1] or 0.0
+    drag = (r.get("drag_coefficient", 0.0) * r.get("frontal_area", 0.0) / cp["drag_area"])
+    friction = t["friction"] * cp["tire_friction_scale"]
+    hold = b.get("hold_brake_torque", 0.0)
+
+    def wheel(front):
+        return {"tire_friction": round(friction, 4),
+                "damping_rate": w.get("damping_rate", 0.25),
+                "max_steer_angle_deg": cp["max_steer_angle_deg"] if front else 0.0,
+                "radius_m": g["wheel_radius"],
+                "max_brake_torque": b["max_brake_torque"],
+                "max_handbrake_torque": 0.0 if front else hold,
+                "lat_stiff_max_load": t.get("lat_stiff_max_load", 3.0),
+                "lat_stiff_value": t.get("lat_stiff_value", 20.0),
+                "long_stiff_value": t.get("long_stiff_value", 3000.0)}
+
+    return {
+        "vehicle": {
+            "mass": i["mass"],
+            "center_of_mass": nudge,
+            "drag_coefficient": round(drag, 4),
+            "max_rpm": p["motor_max_rpm"],
+            "torque_curve": motor_curve(p),
+            "final_ratio": p["gear_ratio"],
+            "forward_gears": [{"ratio": 1.0, "down_ratio": 0.0, "up_ratio": 0.0}],
+            "use_gear_autobox": True,
+            "moi": cp["engine_moi"],
+            "damping_rate_full_throttle": cp["engine_damping"],
+            "damping_rate_zero_throttle_clutch_engaged": cp["engine_damping"],
+            "damping_rate_zero_throttle_clutch_disengaged": cp["engine_damping"],
+        },
+        "wheels": [wheel(True), wheel(True), wheel(False), wheel(False)],
+        # What CARLA's model lacks, applied by the vehicle bridge to the commands it sends.
+        "command_lags": {"brake_dead_time": b.get("dead_time", 0.0),
+                         "brake_time_constant": b.get("time_constant", 0.0),
+                         "motor_time_constant": p.get("motor_time_constant", 0.0)},
+    }
+
+
+def carla_physics(spec, header):
+    doc = carla_physics_doc(spec)
+    body = {"spec_hash": specmod.spec_hash(spec), "physics_hash": specmod.physics_hash(spec),
+            "blueprint": spec.section("body").get("catalogue_model", ""), **doc}
+    return emit.comment(header) + emit.comment(
+        "CARLA's physics for the car (VehiclePhysicsControl): applied to the ego by the CARLA\n"
+        "world server after the spawn (with SSv2) or by acb_bridge on attach (standalone), and\n"
+        "read back by acb_bridge. SI units; wheels front left, front right, rear left, rear\n"
+        "right; center_of_mass is CARLA's nudge of the body's own (CARLA's axes, y right).\n"
+        "Not modelled by CARLA, named here: the rear-wheel drive (CARLA drives its 4W\n"
+        "differential), ABS, regen and traction control, rolling resistance.") \
+        + emit.yaml_text(body)
 
 
 # --- SSv2: the vehicle catalog --------------------------------------------------------------
@@ -135,6 +220,9 @@ def outputs(root):
     out = {}
     for s, rel in zip(specs, rels):
         out[f"generated/{s.name}/carla_sensors.yaml"] = carla_sensors(s, emit.header(s, TOOL, rel))
+        if carla_physics_doc(s) is not None:
+            out[f"generated/{s.name}/carla_physics.yaml"] = carla_physics(
+                s, emit.header(s, TOOL, rel))
     out["catalogs/vehicles.xosc"] = catalog(specs, rels)
     return out
 

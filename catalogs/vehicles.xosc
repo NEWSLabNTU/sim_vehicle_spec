@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated from vehicles/tesla_model3.yaml (spec_hash d5d4b266c7fd1fb46630672c7979aa617f598e8458fa279b635dec108fa4ea45) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate. -->
+<!-- The simulated cars as SSv2 vehicles: one entry per spec, its body box and axles in the
+     spec's base_link (the rear axle centre on the ground), model3d its body. A scenario refers to
+     an entry with CatalogReference and may assign maxSpeed, maxAcceleration, maxDeceleration and
+     maxSteering; the box and the axles are the car's and are not parameters. -->
+<OpenSCENARIO>
+  <FileHeader author="sim_vehicle_spec" date="2026-10-23T00:00:00" description="Simulated cars, generated from sim_vehicle_spec's specs" revMajor="1" revMinor="1" />
+  <Catalog name="vehicles">
+    <Vehicle name="tesla_model3" vehicleCategory="car" model3d="vehicle.tesla.model3">
+      <ParameterDeclarations>
+        <ParameterDeclaration name="maxSpeed" parameterType="double" value="58.9" />
+        <ParameterDeclaration name="maxAcceleration" parameterType="double" value="9.8" />
+        <ParameterDeclaration name="maxDeceleration" parameterType="double" value="9.8" />
+        <ParameterDeclaration name="maxSteering" parameterType="double" value="0.7" />
+      </ParameterDeclarations>
+      <BoundingBox>
+        <Center x="1.416" y="0.0" z="0.744" />
+        <Dimensions width="2.163" height="1.488" length="4.792" />
+      </BoundingBox>
+      <Performance maxSpeed="$maxSpeed" maxAcceleration="$maxAcceleration" maxDeceleration="$maxDeceleration" />
+      <Axles>
+        <FrontAxle maxSteering="$maxSteering" positionX="3.005" wheelDiameter="0.74" trackWidth="1.667" positionZ="0.37" />
+        <RearAxle maxSteering="0.0" positionX="0.0" wheelDiameter="0.74" trackWidth="1.667" positionZ="0.37" />
+      </Axles>
+      <Properties>
+        <Property name="swb.spec_hash" value="d5d4b266c7fd1fb46630672c7979aa617f598e8458fa279b635dec108fa4ea45" />
+      </Properties>
+    </Vehicle>
+  </Catalog>
+</OpenSCENARIO>

@@ -1,0 +1,20 @@
+# Generated from vehicles/tesla_model3.yaml (spec_hash d5d4b266c7fd1fb46630672c7979aa617f598e8458fa279b635dec108fa4ea45) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
+# The sensors acb_bridge spawns on CARLA, keyed by the URDF frame each is mounted at
+# (the mounts come from Autoware's robot_description), with their blueprint attributes.
+spec_hash: d5d4b266c7fd1fb46630672c7979aa617f598e8458fa279b635dec108fa4ea45
+vehicle: {blueprint: vehicle.tesla.model3}
+sensors:
+  top:
+    blueprint: sensor.lidar.ray_cast
+    parameters: {channels: '128', range: '200.0', rotation_frequency: '20.0', upper_fov: '15.0', lower_fov: '-25.0',
+      points_per_second: '2621440', sensor_tick: '0.0', horizontal_fov: '360.0', atmosphere_attenuation_rate: '0.0',
+      dropoff_general_rate: '0.0', dropoff_intensity_limit: '1.0', dropoff_zero_intensity: '0.0', noise_stddev: '0.0'}
+  camera6/camera_link:
+    blueprint: sensor.camera.rgb
+    parameters: {image_size_x: '1280', image_size_y: '720', fov: '74.5', sensor_tick: '0.1'}
+  imu_link:
+    blueprint: sensor.other.imu
+    parameters: {sensor_tick: '0.01'}
+  gnss_link:
+    blueprint: sensor.other.gnss
+    parameters: {sensor_tick: '0.1'}

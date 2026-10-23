@@ -1,32 +1,28 @@
-# The Isaac ego: a plausible real Tesla Model 3 on the CARLA Model 3 body's geometry.
+# The simulated Tesla Model 3: a plausible real Model 3 RWD on the CARLA Model 3 body's geometry.
 #
-# This file is the single source of truth for the vehicle. `just generate` writes from it:
-#   - Autoware's vehicle description (aib_vehicle_description/config/vehicle_info.param.yaml,
-#     mirror.param.yaml)
-#   - the sensor kit (aib_sensor_kit_description/config/sensors_calibration.yaml,
-#     sensor_kit_calibration.yaml, urdf/sensor_kit.xacro, and the same calibration under
-#     aib_individual_params/config/default/aib_sensor_kit/)
-#   - the Isaac rig the library builds the PhysX vehicle and sensors from
-#     (src/aib/config/tesla_model3.rig.yaml)
-# and `just check-generated` fails when any of them is stale. Format: docs/spec-format.md.
+# This file is the single source of truth for the car, on every simulator and for every
+# consumer (roadmap 051). Generated from it, each in the repository that uses it:
+#   - here: CARLA's sensor file (generated/tesla_model3/carla_sensors.yaml), CARLA's physics
+#     (carla_physics.yaml, roadmap 051 K3) and the SSv2 vehicle catalog (catalogs/vehicles.xosc)
+#   - autoware_sim_vehicle: Autoware's vehicle and sensor kit packages (tesla_model3_*)
+#   - autoware_isaac_bridge: the Isaac rig its PhysX vehicle and sensors are built from
+# and each repository's `just check-generated` fails when one is stale. Every output carries
+# this spec's spec_hash. Format: docs/spec-format.md.
 #
-# Values come from carla-scenario-bridge (csb) as of commit 4aefee8 ("the ego is a plausible
+# Values came from carla-scenario-bridge (csb) as of commit 4aefee8 ("the ego is a plausible
 # real Model 3, not CARLA's car", roadmap 043): src/csb_isaac/csb_isaac/vehicle_params.py,
 # config/acb_ego.yaml, and acb's vehicle_info / sensor kit calibration it read. The drivetrain,
 # the mass and the road loads are the Model 3 RWD's (2024 "Highland", rear 3D7 motor) from
 # published data: no drive logs exist to fit against. Values marked under `provenance` with
 # `assumed: true` are estimates, not measurements.
-spec_version: 1
+spec_version: 2
 name: tesla_model3
 description: Tesla Model 3 RWD (physics, drivetrain) on the CARLA vehicle.tesla.model3 body (geometry)
 
-autoware:
-  vehicle_model: aib_vehicle
-  sensor_model: aib_sensor_kit
-
 body:
-  # The visual body a host may put on the vehicle: a CARLA blueprint id in csb's vehicle
-  # catalogue (SWB_VEHICLE_USD, CSB_VEHICLE_USD before swb roadmap 046). Without a catalogue the chassis is the box below.
+  # The body: CARLA's blueprint id, which is also the key of the Isaac vehicle catalogue
+  # (CARLA's vehicles exported to USD, SWB_VEHICLE_USD) and the SSv2 catalog entry's vehicle
+  # name. Without an Isaac catalogue the chassis is the box below.
   catalogue_model: vehicle.tesla.model3
 
 # What Autoware plans with (vehicle_info), and the PhysX wheel layout. base_link is the rear
@@ -36,8 +32,8 @@ geometry:
   wheel_tread: 1.667
   wheel_radius: 0.370
   wheel_width: 0.235
-  front_overhang: 0.923
-  rear_overhang: 0.864
+  front_overhang: 0.807
+  rear_overhang: 0.980
   left_overhang: 0.248
   right_overhang: 0.248
   vehicle_height: 1.488
@@ -122,19 +118,20 @@ suspension:
   damping_ratio: 0.45
   travel: 0.2                 # m
 
-physx:
-  # The wheel's spin is stiff against the tire: at 1 substep per 1/60 s braking went unstable
-  # and locked the wheels (csb roadmap 043). 8 substeps at every speed and a 4 m/s active
-  # slip denominator track the request.
-  substeps: 8
-  substep_threshold_speed: 5.0
-  min_active_slip_denominator: 4.0
-  min_passive_slip_denominator: 4.0
-  min_lateral_slip_denominator: 1.0
-  sticky_tire_threshold_speed: 0.2
-  sticky_tire_threshold_time: 1.0
-  longitudinal_sticky_tire_damping: 200.0
-  lateral_sticky_tire_damping: 20.0
+isaac:
+  physx:
+    # The wheel's spin is stiff against the tire: at 1 substep per 1/60 s braking went unstable
+    # and locked the wheels (csb roadmap 043). 8 substeps at every speed and a 4 m/s active
+    # slip denominator track the request.
+    substeps: 8
+    substep_threshold_speed: 5.0
+    min_active_slip_denominator: 4.0
+    min_passive_slip_denominator: 4.0
+    min_lateral_slip_denominator: 1.0
+    sticky_tire_threshold_speed: 0.2
+    sticky_tire_threshold_time: 1.0
+    longitudinal_sticky_tire_damping: 200.0
+    lateral_sticky_tire_damping: 20.0
 
 # The sensor kit: base_link -> sensor_kit_base_link, then each sensor's mount in the kit.
 # Mounts are what csb's Isaac ego uses today (acb's acb_sensor_kit calibration).
@@ -157,6 +154,20 @@ sensors:
       enabled: true
       config: OS1
       variant: OS1_REV7_128ch20hz1024res
+    carla:
+      key: top
+      blueprint: sensor.lidar.ray_cast
+      # channels, range, rotation_frequency (rate_hz) and the vertical field of view come
+      # from the fields above; these are CARLA's own.
+      attributes:
+        points_per_second: 2621440
+        sensor_tick: 0.0
+        horizontal_fov: 360.0
+        atmosphere_attenuation_rate: 0.0
+        dropoff_general_rate: 0.0
+        dropoff_intensity_limit: 1.0
+        dropoff_zero_intensity: 0.0
+        noise_stddev: 0.0
   camera6:
     type: camera
     calibration_key: camera6/camera_link
@@ -172,6 +183,9 @@ sensors:
     isaac:
       # Off as on csb today: traffic lights reach Autoware by V2X (fusion only), not this camera.
       enabled: false
+    carla:
+      key: camera6/camera_link
+      blueprint: sensor.camera.rgb
   imu:
     type: imu
     calibration_key: imu_link
@@ -181,6 +195,11 @@ sensors:
     mount: {x: 0.0, y: 0.0, z: 0.0, roll: 3.14159265359, pitch: 0.0, yaw: 3.14159265359}
     isaac:
       enabled: true
+    carla:
+      key: imu_link
+      blueprint: sensor.other.imu
+      attributes:
+        sensor_tick: 0.01
   gnss:
     type: gnss
     calibration_key: gnss_link
@@ -191,11 +210,14 @@ sensors:
     rate_hz: 10.0
     isaac:
       enabled: true
+    carla:
+      key: gnss_link
+      blueprint: sensor.other.gnss
 
 # Where each number comes from. `assumed: true` marks an estimate to replace with a
 # measurement when one exists.
 provenance:
-  geometry: {basis: "acb vehicle_info: CARLA 0.9.16 vehicle.tesla.model3 (a real Model 3 is 2.875 / 1.58 / 0.334 m); kept so Autoware, the body and the physics are one car"}
+  geometry: {basis: "CARLA 0.9.16 vehicle.tesla.model3, measured: wheel base, track and radius from physics_control (acb's extract_vehicle_params.py, swb's blueprint table); the overhangs from the actor's box against the axles (roadmap 050: the rear axle is 1.386 m behind the actor origin, the box centre 0.029 ahead, so 0.807 front and 0.980 rear (the body 4.792 m with the 3.005 m wheel base, itself 3.0046 rounded), not the 0.923 / 0.864 a centred wheel base gives). A real Model 3 is 2.875 / 1.58 / 0.334 m; kept so Autoware, the body and the physics are one car"}
   inertia.mass: {basis: "Model 3 RWD (2024) curb mass 1760 kg (evspecifications.com/en/model/5f1c3d0)"}
   inertia.com_front_fraction: {assumed: true, basis: "road-test weight splits around 47-48 % front; the RWD's rear motor puts it at the low end"}
   inertia.com_height: {assumed: true, basis: "a floor battery pack puts the CoM low"}
@@ -222,5 +244,5 @@ provenance:
   resistance.drag_coefficient: {basis: "Tesla: Cd 0.23 for Model 3"}
   resistance.frontal_area: {assumed: true, basis: "~2.2 m^2, InsideEVs / Engineering Explained estimate (from the Model S's)"}
   suspension: {assumed: true, basis: "a sedan's ride"}
-  physx: {basis: "csb roadmap 043: the braking instability fix"}
-  sensors: {basis: "acb acb_sensor_kit calibration, as csb's Isaac ego mounts it"}
+  isaac.physx: {basis: "csb roadmap 043: the braking instability fix"}
+  sensors: {basis: "acb acb_sensor_kit calibration, as csb's Isaac ego mounts it; the carla blocks are acb_bridge's vehicle_config.yaml"}

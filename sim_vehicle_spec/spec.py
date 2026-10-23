@@ -1,25 +1,29 @@
-"""A vehicle spec: the one YAML a vehicle is described in (docs/spec-format.md). Pure.
+"""A vehicle spec: the one YAML a simulated car is described in (docs/spec-format.md). Pure.
 
-`load(path)` reads and validates it; `vehicle_params(spec)` gives the PhysX vehicle's flat
-parameters, `sensors(spec)` each sensor with its base_link transform, and
-`camera_intrinsics` a pinhole camera's matrix. The generator (`aib.gen`) writes Autoware's
-files and the Isaac rig from these.
+`load(path)` reads and validates it. From a spec: `box` the body box and `axles` the wheel
+layout in base_link, `sensors` each sensor with its base_link transform, `camera_intrinsics`
+a pinhole camera's matrix, `spec_hash` its fingerprint and `physics_hash` the fingerprint of
+what drives the car. Every generator works from these: this repository's (CARLA, the SSv2
+catalog), autoware_sim_vehicle's (Autoware), autoware_isaac_bridge's (the Isaac rig).
 """
+import hashlib
+import json
 import math
 from dataclasses import dataclass
 from pathlib import Path
 
 from .frames import compose, mount_transform
-from .params import VehicleParams
-from .powertrain import DRIVE_AXLES, MODELS
 
-SPEC_VERSION = 1
+SPEC_VERSION = 2
+# The powertrain models and drive axles a spec may name (autoware_isaac_bridge's aib.powertrain
+# realizes them; its tests check the two lists agree).
+MODELS = ("ideal", "physx", "ev", "fmu")
+DRIVE_AXLES = ("rear", "front", "all")
 SENSOR_TYPES = ("lidar", "camera", "imu", "gnss")
 MOUNT_KEYS = ("x", "y", "z", "roll", "pitch", "yaw")
 
 # section -> (required keys, optional keys)
 SECTIONS = {
-    "autoware": (("vehicle_model", "sensor_model"), ()),
     "body": ((), ("catalogue_model",)),
     "geometry": (("wheel_base", "wheel_tread", "wheel_radius", "wheel_width", "front_overhang",
                   "rear_overhang", "left_overhang", "right_overhang", "vehicle_height",
@@ -41,14 +45,21 @@ SECTIONS = {
                         "air_density")),
     "steering": ((), ("ackermann", "time_constant", "rate_limit")),
     "suspension": (("frequency", "damping_ratio", "travel"), ()),
-    "physx": ((), ("substeps", "substep_threshold_speed", "min_active_slip_denominator",
-                   "min_passive_slip_denominator", "min_lateral_slip_denominator",
-                   "sticky_tire_threshold_speed", "sticky_tire_threshold_time",
-                   "longitudinal_sticky_tire_damping", "lateral_sticky_tire_damping")),
     "sensor_kit": (("mount",), ()),
+    # Per simulator: what only that simulator's model needs.
+    "isaac": ((), ("physx",)),
+    "carla": ((), ("physics", "pedal_maps")),
 }
+# isaac.physx: the PhysX vehicle's solver settings
+PHYSX_KEYS = ("substeps", "substep_threshold_speed", "min_active_slip_denominator",
+              "min_passive_slip_denominator", "min_lateral_slip_denominator",
+              "sticky_tire_threshold_speed", "sticky_tire_threshold_time",
+              "longitudinal_sticky_tire_damping", "lateral_sticky_tire_damping")
+# A sensor's carla: the key acb_bridge spawns it under (a TF frame of the URDF), the CARLA
+# blueprint, and the attributes not derived from the shared fields.
+CARLA_SENSOR_KEYS = ("key", "blueprint", "attributes")
 TOP = {"spec_version", "name", "description", "sensors", "provenance", *SECTIONS}
-SENSOR_COMMON = ("type", "calibration_key", "link", "frame", "topic", "mount", "isaac")
+SENSOR_COMMON = ("type", "calibration_key", "link", "frame", "topic", "mount", "isaac", "carla")
 SENSOR_EXTRA = {
     "lidar": ("channels", "rate_hz", "range", "vertical_fov"),
     "camera": ("width", "height", "horizontal_fov", "rate_hz", "info_topic"),
@@ -62,12 +73,17 @@ SUBSECTIONS = {
                         "apply_rate", "min_speed"),
     ("powertrain", "traction_control"): ("enabled", "slip_limit", "slip_reapply",
                                          "release_rate", "apply_rate"),
+    ("isaac", "physx"): PHYSX_KEYS,
 }
 # What an `ev` powertrain cannot do without
 EV_REQUIRED = ("gear_ratio", "motor_peak_torque", "motor_peak_power", "motor_max_rpm")
 # Keys that moved, with where to
 MOVED = {("powertrain", "rolling_resistance"):
          "resistance.rolling_coefficient (a road load applied through the physics)"}
+# Top-level sections of version 1 and where they went
+MOVED_TOP = {"autoware": "nothing: the Autoware package names follow `name` (<name>_description, "
+                         "<name>_sensor_kit_description, ...)",
+             "physx": "isaac.physx"}
 
 
 class SpecError(ValueError):
@@ -101,9 +117,13 @@ def validate(doc, where="spec"):
         raise SpecError(f"{where}: {msg}")
 
     if doc.get("spec_version") != SPEC_VERSION:
-        fail(f"spec_version must be {SPEC_VERSION}, is {doc.get('spec_version')!r}")
+        fail(f"spec_version must be {SPEC_VERSION}, is {doc.get('spec_version')!r} "
+             "(docs/spec-format.md, \"Version 2\")")
     if not doc.get("name"):
         fail("no name")
+    for key, where_to in MOVED_TOP.items():
+        if key in doc:
+            fail(f"{key} is gone in version {SPEC_VERSION}: {where_to}")
     unknown = set(doc) - TOP
     if unknown:
         fail(f"unknown key(s) {sorted(unknown)}")
@@ -188,6 +208,15 @@ def validate(doc, where="spec"):
             for k in ("width", "height", "horizontal_fov"):
                 if k not in s:
                     fail(f"{where_s}: a camera needs {k}")
+        carla = s.get("carla")
+        if carla is not None:
+            if not isinstance(carla, dict):
+                fail(f"{where_s}.carla is not a mapping")
+            extra = set(carla) - set(CARLA_SENSOR_KEYS)
+            if extra:
+                fail(f"{where_s}.carla: unknown key(s) {sorted(extra)}")
+            if "blueprint" not in carla:
+                fail(f"{where_s}.carla: missing blueprint")
     for key, entry in (doc.get("provenance") or {}).items():
         head = key.split(".")[0]
         if head not in TOP:
@@ -204,72 +233,6 @@ def _check_mount(m, where, fail):
 def assumptions(spec):
     """The provenance keys marked `assumed: true`."""
     return sorted(k for k, v in (spec.doc.get("provenance") or {}).items() if v.get("assumed"))
-
-
-def vehicle_params(spec):
-    """The flat VehicleParams of a spec."""
-    d = spec.doc
-    g, i, w, t = d["geometry"], d["inertia"], d["wheels"], d["tires"]
-    b, p = d["brakes"], d["powertrain"]
-    rs = d.get("resistance")
-    abs_ = b.get("abs") or {}
-    tc = p.get("traction_control") or {}
-    st, su, px = spec.section("steering"), d["suspension"], spec.section("physx")
-    base = VehicleParams()
-    values = dict(
-        model=spec.section("body").get("catalogue_model", ""),
-        wheel_base=g["wheel_base"], wheel_tread=g["wheel_tread"],
-        wheel_radius=g["wheel_radius"], wheel_width=g["wheel_width"],
-        max_steer_angle=g["max_steer_angle"],
-        mass=i["mass"],
-        com=(i["com_front_fraction"] * g["wheel_base"], i.get("com_lateral", 0.0), i["com_height"]),
-        inertia_box=tuple(i.get("inertia_box", base.inertia_box)),
-        wheel_mass=w["mass"], wheel_damping_rate=w.get("damping_rate", base.wheel_damping_rate),
-        tire_friction=t["friction"],
-        lat_stiff_max_load=t.get("lat_stiff_max_load", base.lat_stiff_max_load),
-        lat_stiff_value=t.get("lat_stiff_value", base.lat_stiff_value),
-        long_stiff_value=t.get("long_stiff_value", base.long_stiff_value),
-        friction_vs_slip=tuple(tuple(x) for x in t.get("friction_vs_slip", base.friction_vs_slip)),
-        powertrain=p["model"], max_drive_torque=p["max_drive_torque"],
-        max_brake_torque=b["max_brake_torque"],
-        hold_brake_torque=b.get("hold_brake_torque", base.hold_brake_torque),
-        brake_distribution=b.get("distribution", base.brake_distribution),
-        brake_dead_time=b.get("dead_time", base.brake_dead_time),
-        brake_time_constant=b.get("time_constant", base.brake_time_constant),
-        ackermann=bool(st.get("ackermann", True)),
-        steer_time_constant=st.get("time_constant", 0.0),
-        steer_rate_limit=st.get("rate_limit", 0.0),
-        suspension_frequency=su["frequency"], suspension_damping_ratio=su["damping_ratio"],
-        suspension_travel=su["travel"],
-    )
-    for key, field in (("enabled", "abs_enabled"), ("slip_release", "abs_slip_release"),
-                       ("slip_reapply", "abs_slip_reapply"), ("release_rate", "abs_release_rate"),
-                       ("apply_rate", "abs_apply_rate"), ("min_speed", "abs_min_speed")):
-        values[field] = abs_.get(key, getattr(base, field))
-    for key in ("drive_axle", "front_drive_share", "gear_ratio", "motor_peak_torque",
-                "motor_peak_power", "motor_max_rpm", "motor_time_constant", "regen_max_torque",
-                "regen_max_power"):
-        values[key] = p.get(key, getattr(base, key))
-    fade = p.get("regen_fade_speeds", (base.regen_fade_low, base.regen_fade_high))
-    values["regen_fade_low"], values["regen_fade_high"] = fade
-    for key, field in (("enabled", "tc_enabled"), ("slip_limit", "tc_slip_limit"),
-                       ("slip_reapply", "tc_slip_reapply"), ("release_rate", "tc_release_rate"),
-                       ("apply_rate", "tc_apply_rate")):
-        values[field] = tc.get(key, getattr(base, field))
-    # No `resistance` section: no road load (a spec says what its car has).
-    for key in ("rolling_coefficient", "drag_coefficient", "frontal_area"):
-        values[key] = (rs or {}).get(key, getattr(base, key) if rs is not None else 0.0)
-    values["air_density"] = (rs or {}).get("air_density", base.air_density)
-    names = {"substeps": "physx_substeps"}
-    for k, v in px.items():
-        values[names.get(k, k)] = v
-    out = {}
-    for k, v in values.items():
-        default = getattr(base, k)
-        if isinstance(default, float) and isinstance(v, int) and not isinstance(v, bool):
-            v = float(v)
-        out[k] = v
-    return VehicleParams.from_dict(out)
 
 
 def box(spec):
@@ -300,3 +263,38 @@ def camera_intrinsics(width, height, horizontal_fov_deg):
     """Pinhole K (row-major 3x3) for a camera with square pixels, principal point centred."""
     fx = (width / 2) / math.tan(math.radians(horizontal_fov_deg) / 2)
     return [fx, 0.0, width / 2, 0.0, fx, height / 2, 0.0, 0.0, 1.0]
+
+
+def axles(spec):
+    """The wheel layout in base_link (the rear axle centre): front axle x, track, wheel radius."""
+    g = spec.doc["geometry"]
+    return {"front_x": g["wheel_base"], "rear_x": 0.0, "track": g["wheel_tread"],
+            "wheel_radius": g["wheel_radius"]}
+
+
+# What a fingerprint leaves out: words, not the car.
+UNHASHED = ("description", "provenance")
+# What drives the car: the pedal maps are measured against these (docs/spec-format.md).
+PHYSICS_SECTIONS = ("geometry", "inertia", "wheels", "tires", "brakes", "powertrain",
+                    "resistance", "steering", "suspension")
+
+
+def _canonical(value):
+    """JSON of a parsed spec value: keys sorted, numbers as floats or ints as written,
+    so a comment, the key order or the layout never changes the fingerprint."""
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
+def spec_hash(spec):
+    """The spec's fingerprint (SHA-256 of the canonical spec, words left out): every generated
+    file carries it, and every part of a run reports the one it loaded (roadmap 051)."""
+    doc = {k: v for k, v in spec.doc.items() if k not in UNHASHED}
+    return hashlib.sha256(_canonical(doc).encode()).hexdigest()
+
+
+def physics_hash(spec):
+    """The fingerprint of what drives the car (PHYSICS_SECTIONS and carla.physics): the pedal
+    maps measured on CARLA carry it, so moving a sensor does not invalidate them."""
+    doc = {k: spec.doc.get(k) for k in PHYSICS_SECTIONS}
+    doc["carla.physics"] = spec.section("carla").get("physics")
+    return hashlib.sha256(_canonical(doc).encode()).hexdigest()

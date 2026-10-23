@@ -1,7 +1,17 @@
 # Vehicle spec format
 
-One YAML file per vehicle under `vehicles/`, validated strictly by `aib.spec` (an unknown
-key, a missing required key or a malformed mount is an error naming the file and the key).
+One YAML file per vehicle under `vehicles/`, validated strictly by `sim_vehicle_spec.spec`
+(an unknown key, a missing required key or a malformed mount is an error naming the file and
+the key). Every consumer of the car generates its files from it with this library, in its own
+repository:
+
+| output | repository | generator |
+|---|---|---|
+| `generated/<name>/carla_sensors.yaml`, `catalogs/vehicles.xosc` | sim_vehicle_spec | `python3 -m sim_vehicle_spec.gen` |
+| `<name>_description`, `<name>_launch`, `<name>_sensor_kit_description`, `<name>_sensor_kit_launch`, `individual_params` | autoware_sim_vehicle | its `just generate` |
+| the Isaac rig | autoware_isaac_bridge | its `just generate` |
+
+Each repository's `just check-generated` fails when one of its outputs is stale.
 Units: metres, kilograms, seconds, radians, newton-metres, unless a key says otherwise.
 Frame: base_link, the rear axle centre on the ground, x forward, y left, z up.
 
@@ -9,15 +19,16 @@ Frame: base_link, the rear axle centre on the ground, x forward, y left, z up.
 
 | key | required | |
 |---|---|---|
-| `spec_version` | yes | `1` |
-| `name` | yes | the rig is written as `src/aib/config/<name>.rig.yaml` |
+| `spec_version` | yes | `2` |
+| `name` | yes | names everything generated: Autoware's packages (`<name>_description`, `<name>_sensor_kit_description`, ...), the catalog entry, `generated/<name>/` |
 | `description` | no | one line |
-| `autoware` | yes | `vehicle_model`, `sensor_model`: Autoware's package names (`<vehicle_model>_description`, `<sensor_model>_launch`, ...); the generator writes into `src/<vehicle_model>_launch/<vehicle_model>_description` and `src/<sensor_model>_launch/<sensor_model>_description` |
-| `body` | no | `catalogue_model`: the visual body a host may put on the vehicle (a CARLA blueprint id in csb's vehicle catalogue) |
+| `body` | no | `catalogue_model`: the body, a CARLA blueprint id; also the Isaac vehicle catalogue's key and the catalog entry's `model3d` |
 | `geometry` | yes | below |
 | `mirror` | yes | Autoware's `mirror.param.yaml` keys, as is |
 | `inertia` | yes | below |
-| `wheels`, `tires`, `brakes`, `powertrain`, `resistance`, `steering`, `suspension`, `physx` | see below | |
+| `wheels`, `tires`, `brakes`, `powertrain`, `resistance`, `steering`, `suspension` | see below | |
+| `isaac` | no | `physx`: the PhysX vehicle's solver settings (below) |
+| `carla` | no | `physics`, `pedal_maps`: CARLA's model (roadmap 051 K3) |
 | `sensor_kit` | yes | `mount`: base_link -> sensor_kit_base_link |
 | `sensors` | no | name -> sensor, below |
 | `provenance` | no | where numbers come from, below |
@@ -59,8 +70,8 @@ footprint and height these give.
 | `steering.ackermann` | `ackermann` | split the bicycle angle into Ackermann wheel angles (default true) |
 | `steering.time_constant`, `rate_limit` | `steer_time_constant`, `steer_rate_limit` | actuator lag, rate limit; 0: none |
 | `suspension.frequency`, `damping_ratio`, `travel` | `suspension_*` | per axle on its sprung mass |
-| `physx.substeps` | `physx_substeps` | vehicle substeps per physics step, at every speed |
-| `physx.*` (others) | same name | slip denominators, sticky tire thresholds and damping |
+| `isaac.physx.substeps` | `physx_substeps` | vehicle substeps per physics step, at every speed |
+| `isaac.physx.*` (others) | same name | slip denominators, sticky tire thresholds and damping |
 
 An `ev` spec must give `gear_ratio`, `motor_peak_torque`, `motor_peak_power` and
 `motor_max_rpm`; the other `ev` keys default to the shipped spec's. `ideal` ignores them, so
@@ -68,8 +79,8 @@ one spec carries both and `powertrain.model` (or an ego config's `vehicle: {powe
 picks. `powertrain.rolling_resistance` (a force folded into `ideal`'s command, with no
 physical counterpart) is gone: a spec naming it is refused with a pointer to `resistance`.
 
-Every rig field is a `VehicleParams` field (`src/aib/aib/params.py`), so an ego config's
-`vehicle:` override uses the same names.
+Every rig field is a `VehicleParams` field (autoware_isaac_bridge's `aib/params.py`), so an
+ego config's `vehicle:` override uses the same names.
 
 ## Sensors
 
@@ -84,6 +95,10 @@ sensors:
     topic: <topic>
     mount: {x, y, z, roll, pitch, yaw}   # in sensor_kit_base_link, URDF rpy
     isaac: {enabled: true, ...}          # Isaac options; enabled: false keeps it out of the rig's run
+    carla:                               # CARLA: acb_bridge spawns it (carla_sensors.yaml)
+      key: <frame>                       #   the URDF frame it is mounted at
+      blueprint: <sensor.*>
+      attributes: {<name>: <value>}      #   CARLA's own; the shared fields give the rest
     # lidar:  channels, rate_hz, range, vertical_fov
     # camera: width, height, horizontal_fov (deg), rate_hz, info_topic
     # imu, gnss: rate_hz
@@ -93,6 +108,46 @@ The generator writes the mounts to `sensor_kit_calibration.yaml` (under the cali
 key), a link and frame per sensor to `sensor_kit.xacro`, and the rig's sensors with
 base_link transforms composed from the kit's mount and the sensor's. A camera's rig entry
 also carries `k`, the pinhole matrix from its width, height and horizontal FOV.
+
+A sensor's CARLA attributes come from the shared fields where they say the same thing (lidar:
+`channels`, `range`, `rotation_frequency` from `rate_hz`, `upper_fov` and `lower_fov` from
+`vertical_fov`; camera: `image_size_x`, `image_size_y`, `fov`, `sensor_tick` from `rate_hz`;
+imu, gnss: `sensor_tick` from `rate_hz`), then from `carla.attributes`.
+
+## The catalog
+
+`catalogs/vehicles.xosc` (catalog `vehicles`) has an entry per spec, named `name`, with
+`model3d` the body, the box and the axles from the geometry, and `maxSpeed`,
+`maxAcceleration`, `maxDeceleration`, `maxSteering` as parameters a scenario may assign
+(defaults: the powertrain's top speed, the tires' grip, `geometry.max_steer_angle`). A
+scenario refers to it:
+
+```xml
+<CatalogLocations>
+  <VehicleCatalog><Directory path="$(find-pkg-share sim_vehicle_spec)/catalogs" /></VehicleCatalog>
+</CatalogLocations>
+...
+<CatalogReference catalogName="vehicles" entryName="tesla_model3">
+  <ParameterAssignments><ParameterAssignment parameterRef="maxSpeed" value="20" /></ParameterAssignments>
+</CatalogReference>
+```
+
+## Fingerprints
+
+`spec_hash`: SHA-256 of the spec as parsed, keys sorted, `description` and `provenance` left
+out, so a comment, the key order or a sentence never changes it. Every generated file names
+it; every part of a run reports the one it loaded, and the scenario bridge refuses an ego
+whose parts disagree (roadmap 051). `physics_hash`: the same over what drives the car
+(geometry, inertia, wheels, tires, brakes, powertrain, resistance, steering, suspension,
+`carla.physics`): the pedal maps measured on CARLA carry it, so moving a sensor does not
+invalidate them.
+
+## Version 2
+
+From version 1 (autoware_isaac_bridge's): `autoware` is gone (the package names follow
+`name`), `physx` is `isaac.physx`, a sensor may have `carla`, `carla` is new, and the
+geometry's overhangs are the measured body's (roadmap 050). A version 1 file is refused with
+where each key went.
 
 ## Provenance
 

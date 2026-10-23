@@ -1,12 +1,19 @@
-"""The vehicle spec: loading, validation, and what it derives. Pure: no Isaac, no ROS."""
+"""The vehicle spec: loading, validation, what it derives, its fingerprints and the outputs
+generated here. Pure: no simulator, no ROS."""
 import copy
+import sys
+import tempfile
 import unittest
+from pathlib import Path
 
 import yaml
 
-from _paths import SPEC
-from aib import spec as specmod
-from aib.params import VehicleParams
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+SPEC = ROOT / "vehicles/tesla_model3.yaml"
+
+from sim_vehicle_spec import gen  # noqa: E402
+from sim_vehicle_spec import spec as specmod  # noqa: E402
 
 
 def doc():
@@ -17,56 +24,25 @@ class ShippedSpecTest(unittest.TestCase):
     def setUp(self):
         self.spec = specmod.load(SPEC)
 
-    def test_it_is_csbs_model3_as_the_rwd(self):
-        # csb 4aefee8's vehicle_params.py (the plausible real Model 3), with the RWD's mass,
-        # weight split and drive unit
-        p = specmod.vehicle_params(self.spec)
-        self.assertEqual((p.wheel_base, p.wheel_tread, p.wheel_radius, p.wheel_width),
-                         (3.005, 1.667, 0.370, 0.235))
-        self.assertEqual(p.max_steer_angle, 0.70)
-        self.assertEqual(p.mass, 1760.0)
-        self.assertAlmostEqual(p.com[0], 0.47 * 3.005)
-        self.assertEqual(p.com[1:], (0.0, 0.46))
-        self.assertEqual(p.tire_friction, 1.0)
-        self.assertEqual(p.max_brake_torque, 3000.0)
-        self.assertEqual(p.brake_distribution, "dynamic_axle_load")
-        self.assertEqual((p.suspension_frequency, p.suspension_damping_ratio), (1.6, 0.45))
-        self.assertEqual(p.physx_substeps, 8)
-        self.assertEqual(p.min_active_slip_denominator, 4.0)
-        self.assertEqual(p.powertrain, "ev")
-        self.assertEqual(p.friction_vs_slip, ((0.0, 1.0), (0.1, 1.0), (1.0, 0.8)))
-        self.assertEqual((p.drive_axle, p.gear_ratio, p.motor_peak_torque, p.motor_peak_power),
-                         ("rear", 10.0, 340.0, 194000.0))
-        self.assertEqual((p.regen_fade_low, p.regen_fade_high), (1.0, 3.0))
-        self.assertTrue(p.abs_enabled and p.tc_enabled)
-        self.assertEqual((p.drag_coefficient, p.frontal_area), (0.23, 2.2))
-
-    def test_the_library_defaults_are_the_spec(self):
-        # VehicleParams() must not drift from the shipped spec it documents.
-        p = specmod.vehicle_params(self.spec)
-        d = VehicleParams()
-        for k, v in p.to_dict().items():
-            if k == "model":  # the body: the spec's, not a default
-                continue
-            ref = d.to_dict()[k]
-            if isinstance(v, float):
-                self.assertAlmostEqual(v, ref, msg=k)
-            else:
-                self.assertEqual(v, ref, msg=k)
-
     def test_the_assumptions_are_marked(self):
         a = specmod.assumptions(self.spec)
         for key in ("inertia.com_front_fraction", "inertia.com_height", "tires"):
             self.assertIn(key, a)
         self.assertNotIn("inertia.mass", a)
 
-    def test_the_box_is_vehicle_infos_footprint(self):
+    def test_the_box_is_the_measured_body(self):
+        # CARLA's vehicle.tesla.model3 (roadmap 050): 4.792 x 2.163 x 1.488, centre 1.415 ahead
+        # of the rear axle in the blueprint table (1.416 here, the wheel base being 3.005)
         (cx, cy, cz), (lx, ly, lz) = specmod.box(self.spec)
         self.assertAlmostEqual(lx, 4.792)
         self.assertAlmostEqual(ly, 2.163)
         self.assertAlmostEqual(lz, 1.488)
-        self.assertAlmostEqual(cx, (3.005 + 0.923 - 0.864) / 2)
-        self.assertEqual(cy, 0.0)
+        self.assertAlmostEqual(cx, 1.416)
+        self.assertEqual((cy, cz), (0.0, 0.744))
+
+    def test_the_axles(self):
+        self.assertEqual(specmod.axles(self.spec),
+                         {"front_x": 3.005, "rear_x": 0.0, "track": 1.667, "wheel_radius": 0.370})
 
     def test_sensors_are_in_base_link(self):
         s = specmod.sensors(self.spec)
@@ -114,8 +90,6 @@ class ValidationTest(unittest.TestCase):
         d = doc()
         d["powertrain"]["model"] = "ev"
         specmod.validate(d)
-        p = specmod.vehicle_params(specmod.Spec(SPEC, d))
-        self.assertEqual(p.powertrain, "ev")
         del d["powertrain"]["gear_ratio"]
         self.refused(d, "an ev needs ['gear_ratio']")
         d = doc()
@@ -141,13 +115,6 @@ class ValidationTest(unittest.TestCase):
         d = doc()
         d["powertrain"]["rolling_resistance"] = 0.0
         self.refused(d, "resistance.rolling_coefficient")
-
-    def test_no_resistance_section_is_no_road_load(self):
-        d = doc()
-        del d["resistance"]
-        p = specmod.vehicle_params(specmod.Spec(SPEC, d))
-        self.assertEqual((p.rolling_coefficient, p.drag_coefficient, p.frontal_area),
-                         (0.0, 0.0, 0.0))
 
     def test_a_mount_needs_all_six(self):
         d = doc()
@@ -176,6 +143,85 @@ class ValidationTest(unittest.TestCase):
         d = doc()
         d["provenance"]["nonsense.x"] = {"basis": "?"}
         self.refused(d, "provenance.nonsense.x")
+
+
+    def test_version_1_is_refused_with_where_its_keys_went(self):
+        d = doc()
+        d["spec_version"] = 1
+        self.refused(d, "spec_version must be 2")
+        d = doc()
+        d["autoware"] = {"vehicle_model": "x", "sensor_model": "y"}
+        self.refused(d, "autoware is gone")
+        d = doc()
+        d["physx"] = {}
+        self.refused(d, "physx is gone in version 2: isaac.physx")
+
+    def test_a_sensors_carla_block_is_checked(self):
+        d = doc()
+        d["sensors"]["imu"]["carla"]["colour"] = "red"
+        self.refused(d, "sensors.imu.carla: unknown key(s) ['colour']")
+        d = doc()
+        del d["sensors"]["imu"]["carla"]["blueprint"]
+        self.refused(d, "sensors.imu.carla: missing blueprint")
+
+
+class HashTest(unittest.TestCase):
+    def load(self, d):
+        return specmod.Spec(SPEC, d)
+
+    def test_words_do_not_change_the_hash(self):
+        base = specmod.spec_hash(self.load(doc()))
+        d = doc()
+        d["description"] = "another sentence"
+        d["provenance"]["tires"]["basis"] = "another basis"
+        self.assertEqual(specmod.spec_hash(self.load(d)), base)
+        # nor does the file's layout: the same values reordered
+        d = dict(reversed(list(doc().items())))
+        self.assertEqual(specmod.spec_hash(self.load(d)), base)
+
+    def test_a_value_changes_the_hash(self):
+        base = specmod.spec_hash(self.load(doc()))
+        d = doc()
+        d["geometry"]["wheel_base"] = 3.006
+        self.assertNotEqual(specmod.spec_hash(self.load(d)), base)
+
+    def test_moving_a_sensor_keeps_the_physics_hash(self):
+        base, phys = specmod.spec_hash(self.load(doc())), specmod.physics_hash(self.load(doc()))
+        d = doc()
+        d["sensors"]["gnss"]["mount"]["x"] = 0.5
+        self.assertNotEqual(specmod.spec_hash(self.load(d)), base)
+        self.assertEqual(specmod.physics_hash(self.load(d)), phys)
+        d = doc()
+        d["tires"]["friction"] = 0.9
+        self.assertNotEqual(specmod.physics_hash(self.load(d)), phys)
+
+
+class GeneratedTest(unittest.TestCase):
+    def test_the_committed_outputs_are_current(self):
+        from sim_vehicle_spec import emit
+        self.assertEqual(emit.stale(gen.outputs(ROOT), ROOT), [])
+
+    def test_carla_attributes_derive_from_the_shared_fields(self):
+        s = specmod.sensors(specmod.load(SPEC))
+        top = gen.carla_attributes(s["top"])
+        self.assertEqual((top["channels"], top["range"], top["rotation_frequency"],
+                          top["upper_fov"], top["lower_fov"]),
+                         ("128", "200.0", "20.0", "15.0", "-25.0"))
+        cam = gen.carla_attributes(s["camera6"])
+        self.assertEqual((cam["image_size_x"], cam["fov"], cam["sensor_tick"]),
+                         ("1280", "74.5", "0.1"))
+
+    def test_every_output_names_the_spec_and_its_hash(self):
+        h = specmod.spec_hash(specmod.load(SPEC))
+        for path, text in gen.outputs(ROOT).items():
+            self.assertIn(h, text.split("\n", 3)[0] + text.split("\n", 3)[1], path)
+
+    def test_the_catalog_entry_is_the_car(self):
+        xosc = gen.outputs(ROOT)["catalogs/vehicles.xosc"]
+        self.assertIn('<Vehicle name="tesla_model3" vehicleCategory="car" model3d="vehicle.tesla.model3">', xosc)
+        self.assertIn('<Center x="1.416" y="0.0" z="0.744" />', xosc)
+        self.assertIn('<Dimensions width="2.163" height="1.488" length="4.792" />', xosc)
+        self.assertIn('positionX="3.005" wheelDiameter="0.74" trackWidth="1.667"', xosc)
 
 
 if __name__ == "__main__":

@@ -223,6 +223,13 @@ class GeneratedTest(unittest.TestCase):
         self.assertIn('<Dimensions width="2.163" height="1.488" length="4.792" />', xosc)
         self.assertIn('positionX="3.005" wheelDiameter="0.74" trackWidth="1.667"', xosc)
 
+    def test_the_catalog_declares_no_defaults(self):
+        # In SSv2 an entry's declared default shadows the reference's assignment.
+        xosc = gen.outputs(ROOT)["catalogs/vehicles.xosc"]
+        self.assertNotIn("<ParameterDeclaration", xosc)
+        for name in gen.ASSIGNED:
+            self.assertIn(f'"${name}"', xosc)
+
 
 if __name__ == "__main__":
     unittest.main()

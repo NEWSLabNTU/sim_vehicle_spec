@@ -70,8 +70,10 @@ def carla_sensors(spec, header):
 
 # --- SSv2: the vehicle catalog --------------------------------------------------------------
 
-# A scenario assigns these; the catalog's defaults are the spec's envelope.
-PERFORMANCE = ("maxSpeed", "maxAcceleration", "maxDeceleration")
+# A scenario assigns these, every one, in its CatalogReference. The entry declares no defaults:
+# SSv2 evaluates an entry's ParameterDeclarations in the entry's own scope, where they would
+# shadow the reference's assignments (one scope out), so a declared default always won.
+ASSIGNED = ("maxSpeed", "maxAcceleration", "maxDeceleration", "maxSteering")
 
 
 def _x(v):
@@ -81,34 +83,14 @@ def _x(v):
     return "0.0" if text in ("-0.0", "0.0") else text
 
 
-def performance(spec):
-    """The envelope a scenario's SSv2 may drive the car to, when it assigns none: top speed from
-    the motor's top speed, acceleration and deceleration from what the tires can carry."""
-    p, g = spec.doc["powertrain"], spec.doc["geometry"]
-    top = p.get("motor_max_rpm", 0.0) / p.get("gear_ratio", 1.0) * 2 * 3.141592653589793 / 60 \
-        * g["wheel_radius"] if p.get("model") == "ev" else 50.0
-    grip = spec.doc["tires"]["friction"] * 9.81
-    return {"maxSpeed": round(top, 1), "maxAcceleration": round(grip, 1),
-            "maxDeceleration": round(grip, 1)}
-
-
 def catalog_entry(spec):
     (cx, cy, cz), (length, width, height) = specmod.box(spec)
     a = specmod.axles(spec)
-    perf = performance(spec)
-    steering = spec.doc["geometry"]["max_steer_angle"]
     body = spec.section("body").get("catalogue_model", "")
     model3d = f' model3d="{body}"' if body else ""
-    decl = "".join(
-        f'\n        <ParameterDeclaration name="{k}" parameterType="double" value="{perf[k]}" />'
-        for k in PERFORMANCE) + (
-        f'\n        <ParameterDeclaration name="maxSteering" parameterType="double" '
-        f'value="{_x(steering)}" />')
     axle = (f'wheelDiameter="{_x(2 * a["wheel_radius"])}" trackWidth="{_x(a["track"])}" '
             f'positionZ="{_x(a["wheel_radius"])}"')
     return f"""    <Vehicle name="{spec.name}" vehicleCategory="car"{model3d}>
-      <ParameterDeclarations>{decl}
-      </ParameterDeclarations>
       <BoundingBox>
         <Center x="{_x(cx)}" y="{_x(cy)}" z="{_x(cz)}" />
         <Dimensions width="{_x(width)}" height="{_x(height)}" length="{_x(length)}" />
@@ -131,8 +113,9 @@ def catalog(specs, rels):
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 {lines}<!-- The simulated cars as SSv2 vehicles: one entry per spec, its body box and axles in the
      spec's base_link (the rear axle centre on the ground), model3d its body. A scenario refers to
-     an entry with CatalogReference and may assign maxSpeed, maxAcceleration, maxDeceleration and
-     maxSteering; the box and the axles are the car's and are not parameters. -->
+     an entry with CatalogReference and assigns maxSpeed, maxAcceleration, maxDeceleration and
+     maxSteering, all four (the entry declares no defaults: in SSv2 a declared default would
+     shadow the assignment); the box and the axles are the car's and are not parameters. -->
 <OpenSCENARIO>
   <FileHeader author="sim_vehicle_spec" date="2026-10-23T00:00:00" description="Simulated cars, generated from sim_vehicle_spec's specs" revMajor="1" revMinor="1" />
   <Catalog name="vehicles">

@@ -118,9 +118,10 @@ imu, gnss: `sensor_tick` from `rate_hz`), then from `carla.attributes`.
 
 `catalogs/vehicles.xosc` (catalog `vehicles`) has an entry per spec, named `name`, with
 `model3d` the body, the box and the axles from the geometry, and `maxSpeed`,
-`maxAcceleration`, `maxDeceleration`, `maxSteering` as parameters a scenario may assign
-(defaults: the powertrain's top speed, the tires' grip, `geometry.max_steer_angle`). A
-scenario refers to it:
+`maxAcceleration`, `maxDeceleration`, `maxSteering` as parameters every reference assigns:
+what the scenario lets the car do is the scenario's. The entry declares no defaults, because
+SSv2 evaluates an entry's declarations in the entry's own scope, where a default shadows the
+reference's assignment. A scenario refers to it:
 
 ```xml
 <CatalogLocations>
@@ -128,7 +129,12 @@ scenario refers to it:
 </CatalogLocations>
 ...
 <CatalogReference catalogName="vehicles" entryName="tesla_model3">
-  <ParameterAssignments><ParameterAssignment parameterRef="maxSpeed" value="20" /></ParameterAssignments>
+  <ParameterAssignments>
+    <ParameterAssignment parameterRef="maxSpeed" value="20" />
+    <ParameterAssignment parameterRef="maxAcceleration" value="15.0" />
+    <ParameterAssignment parameterRef="maxDeceleration" value="15.0" />
+    <ParameterAssignment parameterRef="maxSteering" value="0.5" />
+  </ParameterAssignments>
 </CatalogReference>
 ```
 

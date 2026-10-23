@@ -7,11 +7,14 @@ repository:
 
 | output | repository | generator |
 |---|---|---|
-| `generated/<name>/carla_sensors.yaml`, `catalogs/vehicles.xosc` | sim_vehicle_spec | `python3 -m sim_vehicle_spec.gen` |
-| `<name>_description`, `<name>_launch`, `<name>_sensor_kit_description`, `<name>_sensor_kit_launch`, `individual_params` | autoware_sim_vehicle | its `just generate` |
-| the Isaac rig | autoware_isaac_bridge | its `just generate` |
+| `generated/<name>/carla_sensors.yaml`, `generated/<name>/carla_physics.yaml` (when the spec has `carla.physics`), `catalogs/vehicles.xosc` | sim_vehicle_spec | `python3 -m sim_vehicle_spec.gen` (`just generate`) |
+| `<name>_description`, `<name>_launch`, `<name>_sensor_kit_description`, `<name>_sensor_kit_launch`, `individual_params` | autoware_sim_vehicle | `python3 -m autoware_gen` (its `just generate`) |
+| the Isaac rig, `src/aib/config/<name>.rig.yaml` | autoware_isaac_bridge | `python3 -m aib.gen` (its `just generate`) |
 
-Each repository's `just check-generated` fails when one of its outputs is stale.
+Each repository's `just check-generated` (the generator with `--check`) fails when one of its
+outputs is stale: it compares every file byte for byte with what the specs give now, prints
+`stale: <path>` for each that differs or is missing, and exits 1.
+
 Units: metres, kilograms, seconds, radians, newton-metres, unless a key says otherwise.
 Frame: base_link, the rear axle centre on the ground, x forward, y left, z up.
 
@@ -26,7 +29,8 @@ Frame: base_link, the rear axle centre on the ground, x forward, y left, z up.
 | `geometry` | yes | below |
 | `mirror` | yes | Autoware's `mirror.param.yaml` keys, as is |
 | `inertia` | yes | below |
-| `wheels`, `tires`, `brakes`, `powertrain`, `resistance`, `steering`, `suspension` | see below | |
+| `wheels`, `tires`, `brakes`, `powertrain`, `suspension` | yes | below |
+| `resistance`, `steering` | no | below |
 | `isaac` | no | `physx`: the PhysX vehicle's solver settings (below) |
 | `carla` | no | `physics`: what CARLA's model needs beyond the physics sections ("CARLA's physics") |
 | `sensor_kit` | yes | `mount`: base_link -> sensor_kit_base_link |
@@ -149,15 +153,69 @@ for the vehicle bridge's command path, since CARLA's model has none.
 Not modelled by CARLA, and so not in the file: the rear-wheel drive (CARLA drives its own
 differential), ABS, regen and traction control, rolling resistance. `physics_hash` covers
 the physics sections and `carla.physics`: the pedal maps measured on CARLA carry it.
+`carla_physics.yaml` needs an `ev` powertrain; the generator refuses another.
+
+The file, key by key (YAML, after the generated header):
+
+| key | |
+|---|---|
+| `spec_hash`, `physics_hash` | the spec's fingerprints ("Fingerprints") |
+| `blueprint` | `body.catalogue_model`: the CARLA blueprint the physics is for. A consumer refuses to put it on another body |
+| `vehicle.mass` | kg |
+| `vehicle.center_of_mass` | `[x, y, z]`, m: CARLA's nudge of the body's own centre of mass, CARLA's axes (y right) |
+| `vehicle.drag_coefficient` | Cd x frontal area / `drag_area` |
+| `vehicle.max_rpm`, `vehicle.torque_curve` | the motor: `[[rpm, N m], ...]` at the engine, 11 points |
+| `vehicle.final_ratio`, `vehicle.forward_gears`, `vehicle.use_gear_autobox` | `gear_ratio`; one gear of ratio 1; true |
+| `vehicle.moi`, `vehicle.damping_rate_full_throttle`, `vehicle.damping_rate_zero_throttle_clutch_engaged`, `vehicle.damping_rate_zero_throttle_clutch_disengaged` | `engine_moi`, `engine_damping` (all three) |
+| `wheels` | four, front left, front right, rear left, rear right: `tire_friction`, `damping_rate`, `max_steer_angle_deg` (0 on the rear), `radius_m` (CARLA takes centimetres), `max_brake_torque`, `max_handbrake_torque` (`hold_brake_torque` on the rear, 0 on the front), `lat_stiff_max_load`, `lat_stiff_value`, `long_stiff_value` |
+| `command_lags` | `brake_dead_time`, `brake_time_constant`, `motor_time_constant`, s: for the vehicle bridge's command path |
+
+Applying it and reading it back:
+
+- **Python**, `sim_vehicle_spec.carla_physics` (imports `carla` only inside the functions):
+  `load(path)`; `apply(vehicle, doc)` puts the file on a `carla.Vehicle`'s
+  `VehiclePhysicsControl`, wheels included; `differences(vehicle, doc)` returns what the
+  actor runs that the file does not say, as `"<field>: file X, actor Y"` strings, empty when
+  it runs the file.
+- **Rust**, the crate `crates/carla_physics_spec` (its own workspace, a path dependency of
+  swb_carla_world and acb_bridge): `CarlaPhysics::load(path)` (refuses a file without four
+  wheels), `peak_torque()`, `as_read_back()`, and `differences(&ReadBack, friction_scale)`.
+  `ReadBack` holds what a consumer reads off the actor, in the file's units; `friction_scale`
+  is the road's (1 on a dry road), so a world server that scales the tires for a wet road
+  still matches. The consumer maps the file onto carla-rust itself.
+- Both compare the same fields with a tolerance of 1e-3 x max(1, abs(value)), since CARLA
+  stores f32: `mass`, `center_of_mass` x, y, z, `drag_coefficient`, `max_rpm`,
+  `final_ratio`, the torque curve's peak, `moi`, `damping_rate_zero_throttle_clutch_engaged`,
+  and per wheel `tire_friction`, `radius_m`, `max_brake_torque`, `max_steer_angle_deg`,
+  `long_stiff_value`.
+- **Read back after a tick.** CARLA applies physics at its next tick: a read straight after
+  `apply_physics_control` returns the old values. The CARLA world server applies the file,
+  ticks once, then compares and refuses an actor that differs.
 
 ## The catalog
 
-`catalogs/vehicles.xosc` (catalog `vehicles`) has an entry per spec, named `name`, with
-`model3d` the body, the box and the axles from the geometry, and `maxSpeed`,
-`maxAcceleration`, `maxDeceleration`, `maxSteering` as parameters every reference assigns:
-what the scenario lets the car do is the scenario's. The entry declares no defaults, because
-SSv2 evaluates an entry's declarations in the entry's own scope, where a default shadows the
-reference's assignment. A scenario refers to it:
+`catalogs/vehicles.xosc` (catalog `vehicles`) has an entry per spec, named `name`
+(`vehicleCategory="car"`), with:
+
+- `model3d`: `body.catalogue_model`;
+- `BoundingBox`: the box the geometry gives, in base_link (centre `x = (wheel_base +
+  front_overhang - rear_overhang) / 2`, `y = (left_overhang - right_overhang) / 2`,
+  `z = vehicle_height / 2`; length, width, height), in metres to the millimetre;
+- `Axles`: `FrontAxle` at `positionX = wheel_base`, `RearAxle` at 0, both with
+  `wheelDiameter = 2 x wheel_radius`, `trackWidth = wheel_tread`, `positionZ =
+  wheel_radius`; the rear's `maxSteering` is 0;
+- `Performance maxSpeed="$maxSpeed" maxAcceleration="$maxAcceleration"
+  maxDeceleration="$maxDeceleration"` and `FrontAxle maxSteering="$maxSteering"`: parameters
+  every reference assigns, because what the scenario lets the car do is the scenario's;
+- `Properties`: `<Property name="swb.spec_hash" value="<spec_hash>"/>`. The scenario bridge
+  reads the installed catalog (`share/sim_vehicle_spec/catalogs/vehicles.xosc` on
+  `AMENT_PREFIX_PATH`) and keys entries by `model3d`, for its start check: SSv2 does not pass
+  a catalog property on in the spawn.
+
+The entry has **no `ParameterDeclarations`**. SSv2 evaluates an entry's declarations in the
+entry's own scope, where a declared default shadows the reference's assignment, so a default
+always won (found when SSv2 refused an acceleration of 13 against a default of 9.8). Each
+reference must therefore assign all four. A scenario refers to it:
 
 ```xml
 <CatalogLocations>
@@ -176,13 +234,40 @@ reference's assignment. A scenario refers to it:
 
 ## Fingerprints
 
-`spec_hash`: SHA-256 of the spec as parsed, keys sorted, `description` and `provenance` left
-out, so a comment, the key order or a sentence never changes it. Every generated file names
-it; every part of a run reports the one it loaded, and the scenario bridge refuses an ego
-whose parts disagree (roadmap 051). `physics_hash`: the same over what drives the car
-(geometry, inertia, wheels, tires, brakes, powertrain, resistance, steering, suspension,
-`carla.physics`): the pedal maps measured on CARLA carry it, so moving a sensor does not
-invalidate them.
+Two SHA-256 fingerprints of a spec, each written as 64 lowercase hex digits
+(`sim_vehicle_spec.spec.spec_hash`, `physics_hash`). Messages often show the first 12.
+
+**`spec_hash`** identifies the car. Its canonical form:
+
+1. Parse the file with PyYAML's `safe_load` (YAML 1.1). Comments, layout and key order are
+   gone at this point.
+2. Drop the top-level keys `description` and `provenance` (words, not the car).
+3. Serialise what remains as JSON with keys sorted at every level, separators `,` and `:`
+   (no spaces), ASCII only (`json.dumps(doc, sort_keys=True, separators=(",", ":"),
+   ensure_ascii=True)`).
+4. SHA-256 of that text's UTF-8 bytes, in hex.
+
+Numbers keep the type the YAML parser gave them: an integer is written as an integer and a
+float as Python's shortest round-trip repr. So `0.37` and `0.370` hash the same, but `1760`
+and `1760.0` do not. Note too that YAML 1.1 reads `1e3` and `1.0e3` as strings (it needs a
+sign in the exponent and a dot: `1.0e+3`). Keep numbers as the shipped spec writes them. Another
+implementation reproduces the hash only by following these rules, Python's float repr
+included.
+
+Every generated file names the `spec_hash` of the spec it came from (a header line, and a
+`spec_hash` key where the format has room). Every part of a run reports the one it loaded:
+the world server in `SpawnReply.body.spec_hash`, the vehicle agent at registration (from
+`<name>_description/config/spec_hash.yaml`), and the catalog entry's `swb.spec_hash`
+property. The scenario bridge refuses an ego whose parts disagree, naming who loaded which
+(roadmap 051). Standalone, acb_bridge compares its sensor file's hash with the Autoware
+packages' and warns.
+
+**`physics_hash`** identifies what drives the car: the same steps over a mapping of the
+sections `geometry`, `inertia`, `wheels`, `tires`, `brakes`, `powertrain`, `resistance`,
+`steering`, `suspension` (a missing one as null) and one more key, `"carla.physics"`, holding
+`carla.physics` (null without it). The pedal maps measured on CARLA carry it
+(autoware_sim_vehicle's `pedal_maps.yaml`), so moving a sensor does not invalidate them, and
+`carla_physics.yaml` names it.
 
 ## Version 2
 

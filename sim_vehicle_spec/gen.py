@@ -1,6 +1,7 @@
 """The outputs this repository owns, from every spec under vehicles/ (roadmap 051):
 
     generated/<name>/carla_sensors.yaml   the sensors acb_bridge spawns on CARLA
+    generated/<name>/carla_physics.yaml   CARLA's VehiclePhysicsControl for the car, and its lags
     catalogs/vehicles.xosc               the SSv2 vehicle catalog (one entry per spec)
 
     python3 -m sim_vehicle_spec.gen [--root .]           # write

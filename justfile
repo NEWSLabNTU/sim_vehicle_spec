@@ -16,6 +16,11 @@ test: check-generated
     python3 -m pytest -q test
     cd crates/carla_physics_spec && cargo test -q
 
+# The tests, then lint: pyflakes, and rustfmt and clippy on the Rust reader
+check: test
+    python3 -m pyflakes sim_vehicle_spec test
+    cd crates/carla_physics_spec && cargo fmt --check && cargo clippy -q -- -D warnings
+
 build:
     #!/usr/bin/env bash
     set -e

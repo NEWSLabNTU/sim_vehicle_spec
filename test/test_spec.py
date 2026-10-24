@@ -2,7 +2,6 @@
 generated here. Pure: no simulator, no ROS."""
 import copy
 import sys
-import tempfile
 import unittest
 from pathlib import Path
 

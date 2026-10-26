@@ -19,8 +19,8 @@ geometry:
   wheel_width: 0.210
   front_overhang: 0.829
   rear_overhang: 1.003
-  left_overhang: 0.050
-  right_overhang: 0.050
+  left_overhang: 0.1545
+  right_overhang: 0.1545
   vehicle_height: 1.301
   # A drift car's lock (bicycle tire angle): 58 deg
   max_steer_angle: 1.01
@@ -195,7 +195,7 @@ sensors:
 # Where each number comes from. `assumed: true` marks an estimate to replace with a
 # measurement when one exists.
 provenance:
-  geometry: {basis: "CARLA 0.9.16 vehicle.ford.mustang (BP_Mustang66), measured: axles at x 1.562 and -1.324 m from the actor, track 1.586 m, wheel radius 0.32 m and width 0.21 m (swb_carla_world's blueprint table, the Isaac catalogue's vehicles.json); overhangs from the render box (x -2.327 to 2.391 m, width 1.895 m) against the axles. A real 1966 Mustang has a 2.743 m wheel base; kept as the body is"}
+  geometry: {basis: "CARLA 0.9.16 vehicle.ford.mustang (BP_Mustang66), measured: axles at x 1.562 and -1.324 m from the actor, track 1.586 m, wheel radius 0.32 m and width 0.21 m (swb_carla_world's blueprint table, the Isaac catalogue's vehicles.json); overhangs from the render box (x -2.327 to 2.391 m, width 1.895 m) against the axles, the side ones from the track (wheel centres). A real 1966 Mustang has a 2.743 m wheel base; kept as the body is"}
   geometry.max_steer_angle: {assumed: true, basis: "drift builds run 50-70 deg of lock (steering angle kits); 58 deg, within CARLA's 70 deg wheel limit"}
   inertia.mass: {assumed: true, basis: "a stripped 1960s Mustang restomod; Hoonigan's Hoonicorn V2 is about 1400 kg"}
   inertia.com_front_fraction: {assumed: true, basis: "a drift build's ~50:50 (research survey for roadmap 057: Toyota GR86, Nissan S15 builds)"}

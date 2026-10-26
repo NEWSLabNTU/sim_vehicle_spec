@@ -1,12 +1,12 @@
-# Generated from vehicles/drift_mustang.yaml (spec_hash e5462b943ccad0d56f736d63c4a3d0541f3e6b0e3958a8cfbe280efc81c5b96d) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
+# Generated from vehicles/drift_mustang.yaml (spec_hash a731a32fdeefeeea8525974d8bf4f73778b3e842d03d700652620003d08b0c6f) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
 # CARLA's physics for the car (VehiclePhysicsControl): applied to the ego by the CARLA
 # world server after the spawn (with SSv2) or by acb_bridge on attach (standalone), and
 # read back by acb_bridge. SI units; wheels front left, front right, rear left, rear
 # right; center_of_mass is CARLA's nudge of the body's own (CARLA's axes, y right).
 # Not modelled by CARLA, named here: the rear-wheel drive (CARLA drives its 4W
 # differential), ABS, regen and traction control, rolling resistance.
-spec_hash: e5462b943ccad0d56f736d63c4a3d0541f3e6b0e3958a8cfbe280efc81c5b96d
-physics_hash: 166006826f3267446c7fec9611f46cd3e283d76baf5daccfd88eb5755d2f4375
+spec_hash: a731a32fdeefeeea8525974d8bf4f73778b3e842d03d700652620003d08b0c6f
+physics_hash: bb1fd75f55e4daecd05c247f49e362d924a822ded6e9500090847e83e7a8c440
 blueprint: vehicle.ford.mustang
 vehicle:
   mass: 1450.0

@@ -40,7 +40,7 @@ SECTIONS = {
                    ("drive_axle", "front_drive_share", "gear_ratio", "motor_peak_torque",
                     "motor_peak_power", "motor_max_rpm", "motor_time_constant",
                     "regen_max_torque", "regen_max_power", "regen_fade_speeds",
-                    "traction_control")),
+                    "traction_control", "differential")),
     "resistance": ((), ("rolling_coefficient", "drag_coefficient", "frontal_area",
                         "air_density")),
     "steering": ((), ("ackermann", "time_constant", "rate_limit")),
@@ -71,12 +71,15 @@ SENSOR_EXTRA = {
     "gnss": ("rate_hz",),
 }
 BRAKE_DISTRIBUTIONS = ("dynamic_axle_load", "static")
+# powertrain.differential.type: each driven axle's differential
+DIFFERENTIALS = ("open", "locked", "lsd")
 # Nested mappings: (section, key) -> their keys (all optional)
 SUBSECTIONS = {
     ("brakes", "abs"): ("enabled", "slip_release", "slip_reapply", "release_rate",
                         "apply_rate", "min_speed"),
     ("powertrain", "traction_control"): ("enabled", "slip_limit", "slip_reapply",
                                          "release_rate", "apply_rate"),
+    ("powertrain", "differential"): ("type", "preload", "power_lock", "coast_lock"),
     ("isaac", "physx"): PHYSX_KEYS,
     ("carla", "physics"): CARLA_PHYSICS_KEYS,
 }
@@ -177,6 +180,18 @@ def validate(doc, where="spec"):
     if fade is not None and not (isinstance(fade, list) and len(fade) == 2
                                  and 0 <= float(fade[0]) < float(fade[1])):
         fail("powertrain.regen_fade_speeds must be [low, high] m/s, 0 <= low < high")
+    diff = pt.get("differential") or {}
+    kind = diff.get("type", "open")
+    if kind not in DIFFERENTIALS:
+        fail(f"powertrain.differential.type {kind!r}: one of {', '.join(DIFFERENTIALS)}")
+    for k in ("preload", "power_lock", "coast_lock"):
+        if k in diff and kind != "lsd":
+            fail(f"powertrain.differential.{k}: only an lsd has it")
+        if k in diff and not float(diff[k]) >= 0:
+            fail(f"powertrain.differential.{k} must be >= 0")
+    for k in ("power_lock", "coast_lock"):
+        if k in diff and not float(diff[k]) <= 1:
+            fail(f"powertrain.differential.{k} must be a share of the axle torque, 0..1")
     dist = doc["brakes"].get("distribution", "dynamic_axle_load")
     if dist not in BRAKE_DISTRIBUTIONS:
         fail(f"brakes.distribution {dist!r}: one of {', '.join(BRAKE_DISTRIBUTIONS)}")

@@ -110,6 +110,20 @@ class ValidationTest(unittest.TestCase):
         d["powertrain"]["traction_control"] = True
         self.refused(d, "powertrain.traction_control is not a mapping")
 
+    def test_the_differential_is_checked(self):
+        d = doc()
+        d["powertrain"]["differential"] = {"type": "lsd", "preload": 100.0, "power_lock": 0.5,
+                                           "coast_lock": 0.25}
+        specmod.validate(d)
+        d["powertrain"]["differential"] = {"type": "viscous"}
+        self.refused(d, "differential.type 'viscous'")
+        d["powertrain"]["differential"] = {"type": "locked", "preload": 50.0}
+        self.refused(d, "differential.preload: only an lsd has it")
+        d["powertrain"]["differential"] = {"type": "lsd", "power_lock": 1.5}
+        self.refused(d, "power_lock must be a share")
+        d["powertrain"]["differential"] = {"type": "lsd", "ramp": 45}
+        self.refused(d, "powertrain.differential: unknown key(s) ['ramp']")
+
     def test_rolling_resistance_moved_to_the_physics(self):
         d = doc()
         d["powertrain"]["rolling_resistance"] = 0.0

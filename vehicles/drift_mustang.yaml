@@ -6,7 +6,7 @@
 # data: see `provenance`. The single source of truth for the car on every simulator (roadmap 051).
 spec_version: 2
 name: drift_mustang
-description: 1966 Mustang drift build (light, 50:50, 330 kW rear motor, 58 deg lock, no ABS/TC/ESC) on the CARLA vehicle.ford.mustang body
+description: 1966 Mustang drift build (light, 50:50, 330 kW rear motor, locked rear axle, 58 deg lock, no ABS/TC/ESC) on the CARLA vehicle.ford.mustang body
 
 body:
   catalogue_model: vehicle.ford.mustang
@@ -73,6 +73,8 @@ powertrain:
   regen_max_power: 60000.0
   regen_fade_speeds: [1.0, 3.0]
   traction_control: {enabled: false, slip_limit: 0.25, slip_reapply: 0.15, release_rate: 20.0, apply_rate: 5.0}
+  # A spooled rear axle: both rear wheels at one speed, as drift builds weld or lock theirs
+  differential: {type: locked}
 
 resistance:
   rolling_coefficient: 0.012
@@ -203,7 +205,7 @@ provenance:
   inertia.inertia_box: {assumed: true, basis: "uniform box of the body"}
   tires.friction_vs_slip: {assumed: true, basis: "past the peak the grip falls to 0.7 of it when the wheel spins or locks (Burckhardt dry asphalt gives 0.65 of the peak locked); lower than the Model 3's 0.8 so a spinning rear lets go"}
   brakes: {assumed: true, basis: "a race build: no ABS (a drift car's brakes lock on purpose), a static split, a fast hydraulic response"}
-  powertrain: {assumed: true, basis: "an electric drift build in the spec's ev model: 330 kW (about 230 W/kg, as TUM's drifting AMG GT's 214), 700 N m through 6:1, the rear axle; no traction control. The rear differential is open until sim_vehicle_ecu has a locked or limited-slip one (roadmap 057)"}
+  powertrain: {assumed: true, basis: "an electric drift build in the spec's ev model: 330 kW (about 230 W/kg, as TUM's drifting AMG GT's 214), 700 N m through 6:1, the rear axle; no traction control; a locked (spooled) rear differential, as drift builds weld theirs (sim_vehicle_ecu's `locked`, fa846d2 / 142c9a6)"}
   resistance: {assumed: true, basis: "a 1960s fastback: Cd about 0.45, frontal area about 1.9 m^2; sticky tires roll harder"}
   suspension: {assumed: true, basis: "stiffer than a sedan's: 2 Hz, damping 0.5, 15 cm travel"}
   isaac.physx: {basis: "the Model 3's: csb roadmap 043's braking fix"}

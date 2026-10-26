@@ -1,7 +1,7 @@
-# Generated from vehicles/drift_mustang.yaml (spec_hash a731a32fdeefeeea8525974d8bf4f73778b3e842d03d700652620003d08b0c6f) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
+# Generated from vehicles/drift_mustang.yaml (spec_hash caa62ce28c665f6577dd14550f856fb4450ca132fbb4762a07cf651015f3347b) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
 # The sensors acb_bridge spawns on CARLA, keyed by the URDF frame each is mounted at
 # (the mounts come from Autoware's robot_description), with their blueprint attributes.
-spec_hash: a731a32fdeefeeea8525974d8bf4f73778b3e842d03d700652620003d08b0c6f
+spec_hash: caa62ce28c665f6577dd14550f856fb4450ca132fbb4762a07cf651015f3347b
 vehicle: {blueprint: vehicle.ford.mustang}
 sensors:
   top:

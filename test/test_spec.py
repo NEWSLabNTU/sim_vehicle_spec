@@ -225,9 +225,14 @@ class GeneratedTest(unittest.TestCase):
                          ("1280", "74.5", "0.1"))
 
     def test_every_output_names_the_spec_and_its_hash(self):
-        h = specmod.spec_hash(specmod.load(SPEC))
+        # A car's outputs name its own spec; the catalog, every car's, names every spec
+        hashes = {p.stem: specmod.spec_hash(specmod.load(p))
+                  for p in sorted(Path(ROOT, "vehicles").glob("*.yaml"))}
         for path, text in gen.outputs(ROOT).items():
-            self.assertIn(h, text.split("\n", 3)[0] + text.split("\n", 3)[1], path)
+            names = list(hashes) if path.startswith("catalogs/") else [path.split("/")[1]]
+            head = "\n".join(text.split("\n", len(hashes) + 2)[:len(hashes) + 2])
+            for name in names:
+                self.assertIn(hashes[name], head, f"{path}: {name}")
 
     def test_the_catalog_entry_is_the_car(self):
         xosc = gen.outputs(ROOT)["catalogs/vehicles.xosc"]

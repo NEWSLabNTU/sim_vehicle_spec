@@ -1,0 +1,211 @@
+# The drift car: a 1966 Ford Mustang restomod on CARLA's vehicle.ford.mustang body (BP_Mustang66),
+# built for drifting (scenario-world-bridge roadmap 057): light, 50:50, a strong rear motor,
+# a large steering lock, and no driver aids. Like Hoonigan's "Hoonicorn" (a 1965 Mustang).
+#
+# The geometry is the CARLA body's, measured; the rest is a plausible drift build, not one car's
+# data: see `provenance`. The single source of truth for the car on every simulator (roadmap 051).
+spec_version: 2
+name: drift_mustang
+description: 1966 Mustang drift build (light, 50:50, 330 kW rear motor, 58 deg lock, no ABS/TC/ESC) on the CARLA vehicle.ford.mustang body
+
+body:
+  catalogue_model: vehicle.ford.mustang
+
+# base_link is the rear axle centre on the ground, x forward, y left, z up. Metres, radians.
+geometry:
+  wheel_base: 2.886
+  wheel_tread: 1.586
+  wheel_radius: 0.320
+  wheel_width: 0.210
+  front_overhang: 0.829
+  rear_overhang: 1.003
+  left_overhang: 0.050
+  right_overhang: 0.050
+  vehicle_height: 1.301
+  # A drift car's lock (bicycle tire angle): 58 deg
+  max_steer_angle: 1.01
+
+mirror:
+  min_longitudinal_offset: 1.6
+  max_longitudinal_offset: 2.8
+  min_lateral_offset: -1.2
+  max_lateral_offset: 1.2
+  min_height_offset: 0.8
+  max_height_offset: 1.2
+
+inertia:
+  mass: 1450.0
+  com_front_fraction: 0.50
+  com_lateral: 0.0
+  com_height: 0.48
+  inertia_box: [4.72, 1.90, 1.30]
+
+wheels:
+  mass: 22.0
+  damping_rate: 0.25
+
+tires:
+  friction: 1.0
+  lat_stiff_max_load: 2.0
+  lat_stiff_value: 17.0
+  long_stiff_value: 3556.0     # kg (x g): 10 x a quarter-car rest load, as the Model 3's
+  # Grip falls further past the peak than the road car's: a spinning rear lets go
+  friction_vs_slip: [[0.0, 1.0], [0.1, 1.0], [1.0, 0.7]]
+
+brakes:
+  max_brake_torque: 2500.0
+  hold_brake_torque: 1200.0
+  distribution: static
+  dead_time: 0.05
+  time_constant: 0.04
+  abs: {enabled: false, slip_release: 0.25, slip_reapply: 0.15, release_rate: 8.0, apply_rate: 4.0, min_speed: 1.5}
+
+powertrain:
+  model: ev
+  max_drive_torque: 2000.0
+  drive_axle: rear
+  gear_ratio: 6.0
+  motor_peak_torque: 700.0     # N m at the motor to base speed (330 kW / 700 N m = 4500 rpm, 90 km/h)
+  motor_peak_power: 330000.0   # W
+  motor_max_rpm: 16000.0       # ~320 km/h
+  motor_time_constant: 0.02
+  regen_max_torque: 150.0
+  regen_max_power: 60000.0
+  regen_fade_speeds: [1.0, 3.0]
+  traction_control: {enabled: false, slip_limit: 0.25, slip_reapply: 0.15, release_rate: 20.0, apply_rate: 5.0}
+
+resistance:
+  rolling_coefficient: 0.012
+  drag_coefficient: 0.45
+  frontal_area: 1.9
+  air_density: 1.2
+
+steering:
+  ackermann: true
+  time_constant: 0.0
+  rate_limit: 0.0
+
+suspension:
+  frequency: 2.0
+  damping_ratio: 0.5
+  travel: 0.15
+
+isaac:
+  physx:
+    substeps: 8
+    substep_threshold_speed: 5.0
+    min_active_slip_denominator: 4.0
+    min_passive_slip_denominator: 4.0
+    min_lateral_slip_denominator: 1.0
+    sticky_tire_threshold_speed: 0.2
+    sticky_tire_threshold_time: 1.0
+    longitudinal_sticky_tire_damping: 200.0
+    lateral_sticky_tire_damping: 20.0
+
+carla:
+  physics:
+    tire_friction_scale: 1.2
+    drag_area: 2.465
+    body_com: [0.032, 0.0, 0.650]
+    rear_axle_x: -1.324
+    max_steer_angle_deg: 70.0
+    engine_moi: 0.05
+    engine_damping: 0.01
+
+# The sensor kit: on the roof, lower than the Model 3's (1.30 m against 1.49 m).
+sensor_kit:
+  mount: {x: 0.9, y: 0.0, z: 1.8, roll: 0.0, pitch: 0.0, yaw: 0.0}
+
+sensors:
+  top:
+    type: lidar
+    calibration_key: velodyne_top_base_link   # the key in sensor_kit_calibration.yaml
+    link: top_base_link                       # URDF link the mount places
+    frame: top                                # frame_id of the messages (child of link, identity)
+    topic: /sensing/lidar/top/pointcloud_before_sync
+    mount: {x: 0.0, y: 0.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw: 1.575}
+    channels: 128
+    rate_hz: 20.0
+    range: 200.0
+    vertical_fov: [-25.0, 15.0]   # deg (CARLA's ray-cast lidar beside it)
+    isaac:
+      enabled: true
+      config: OS1
+      variant: OS1_REV7_128ch20hz1024res
+    carla:
+      key: top
+      blueprint: sensor.lidar.ray_cast
+      # channels, range, rotation_frequency (rate_hz) and the vertical field of view come
+      # from the fields above; these are CARLA's own.
+      attributes:
+        points_per_second: 2621440
+        sensor_tick: 0.0
+        horizontal_fov: 360.0
+        atmosphere_attenuation_rate: 0.0
+        dropoff_general_rate: 0.0
+        dropoff_intensity_limit: 1.0
+        dropoff_zero_intensity: 0.0
+        noise_stddev: 0.0
+  camera6:
+    type: camera
+    calibration_key: camera6/camera_link
+    link: camera6/camera_link
+    frame: camera6/camera_optical_link
+    topic: /sensing/camera/camera6/image_raw
+    info_topic: /sensing/camera/camera6/camera_info
+    mount: {x: 0.0, y: 0.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw: 0.0}
+    width: 1280
+    height: 720
+    horizontal_fov: 74.5    # deg
+    rate_hz: 10.0
+    isaac:
+      # Off as on csb today: traffic lights reach Autoware by V2X (fusion only), not this camera.
+      enabled: false
+    carla:
+      key: camera6/camera_link
+      blueprint: sensor.camera.rgb
+  imu:
+    type: imu
+    calibration_key: imu_link
+    link: imu_link
+    frame: imu_link
+    topic: /sensing/imu/imu_link/imu_raw
+    mount: {x: 0.0, y: 0.0, z: 0.0, roll: 3.14159265359, pitch: 0.0, yaw: 3.14159265359}
+    isaac:
+      enabled: true
+    carla:
+      key: imu_link
+      blueprint: sensor.other.imu
+      attributes:
+        sensor_tick: 0.01
+  gnss:
+    type: gnss
+    calibration_key: gnss_link
+    link: gnss_link
+    frame: gnss_link
+    topic: /sensing/gnss/gnss_link/nav_sat_fix
+    mount: {x: -0.1, y: 0.0, z: -0.2, roll: 0.0, pitch: 0.0, yaw: 0.0}
+    rate_hz: 10.0
+    isaac:
+      enabled: true
+    carla:
+      key: gnss_link
+      blueprint: sensor.other.gnss
+
+# Where each number comes from. `assumed: true` marks an estimate to replace with a
+# measurement when one exists.
+provenance:
+  geometry: {basis: "CARLA 0.9.16 vehicle.ford.mustang (BP_Mustang66), measured: axles at x 1.562 and -1.324 m from the actor, track 1.586 m, wheel radius 0.32 m and width 0.21 m (swb_carla_world's blueprint table, the Isaac catalogue's vehicles.json); overhangs from the render box (x -2.327 to 2.391 m, width 1.895 m) against the axles. A real 1966 Mustang has a 2.743 m wheel base; kept as the body is"}
+  geometry.max_steer_angle: {assumed: true, basis: "drift builds run 50-70 deg of lock (steering angle kits); 58 deg, within CARLA's 70 deg wheel limit"}
+  inertia.mass: {assumed: true, basis: "a stripped 1960s Mustang restomod; Hoonigan's Hoonicorn V2 is about 1400 kg"}
+  inertia.com_front_fraction: {assumed: true, basis: "a drift build's ~50:50 (research survey for roadmap 057: Toyota GR86, Nissan S15 builds)"}
+  inertia.com_height: {assumed: true, basis: "a low coupe"}
+  inertia.inertia_box: {assumed: true, basis: "uniform box of the body"}
+  tires.friction_vs_slip: {assumed: true, basis: "past the peak the grip falls to 0.7 of it when the wheel spins or locks (Burckhardt dry asphalt gives 0.65 of the peak locked); lower than the Model 3's 0.8 so a spinning rear lets go"}
+  brakes: {assumed: true, basis: "a race build: no ABS (a drift car's brakes lock on purpose), a static split, a fast hydraulic response"}
+  powertrain: {assumed: true, basis: "an electric drift build in the spec's ev model: 330 kW (about 230 W/kg, as TUM's drifting AMG GT's 214), 700 N m through 6:1, the rear axle; no traction control. The rear differential is open until sim_vehicle_ecu has a locked or limited-slip one (roadmap 057)"}
+  resistance: {assumed: true, basis: "a 1960s fastback: Cd about 0.45, frontal area about 1.9 m^2; sticky tires roll harder"}
+  suspension: {assumed: true, basis: "stiffer than a sedan's: 2 Hz, damping 0.5, 15 cm travel"}
+  isaac.physx: {basis: "the Model 3's: csb roadmap 043's braking fix"}
+  carla.physics: {assumed: true, basis: "the Model 3's scales; drag_area the body's box (1.895 x 1.301 m), body_com the box centre, rear_axle_x measured"}
+  sensors: {basis: "the Model 3's kit, mounted 0.2 m lower for the lower roof"}

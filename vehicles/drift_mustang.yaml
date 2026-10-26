@@ -48,8 +48,9 @@ tires:
   friction: 1.0
   lat_stiff_max_load: 2.0
   lat_stiff_value: 17.0
-  long_stiff_value: 3556.0     # kg (x g): 10 x a quarter-car rest load, as the Model 3's
-  # Grip falls further past the peak than the road car's: a spinning rear lets go
+  long_stiff_value: 3625.0     # kg (x g): 10 x a quarter-car rest load, as the Model 3's
+  # Grip falls further past the peak than the road car's: a spinning rear lets go. CARLA only:
+  # Isaac's surface layer writes its road class's own curve over it (swb roadmap 054 T1)
   friction_vs_slip: [[0.0, 1.0], [0.1, 1.0], [1.0, 0.7]]
 
 brakes:
@@ -203,11 +204,12 @@ provenance:
   inertia.com_front_fraction: {assumed: true, basis: "a drift build's ~50:50 (research survey for roadmap 057: Toyota GR86, Nissan S15 builds)"}
   inertia.com_height: {assumed: true, basis: "a low coupe"}
   inertia.inertia_box: {assumed: true, basis: "uniform box of the body"}
-  tires.friction_vs_slip: {assumed: true, basis: "past the peak the grip falls to 0.7 of it when the wheel spins or locks (Burckhardt dry asphalt gives 0.65 of the peak locked); lower than the Model 3's 0.8 so a spinning rear lets go"}
+  tires.friction_vs_slip: {assumed: true, basis: "past the peak the grip falls to 0.7 of it when the wheel spins or locks (Burckhardt dry asphalt gives 0.65 of the peak locked); lower than the Model 3's 0.8 so a spinning rear lets go. Read by CARLA only: on Isaac the surface layer (swb_isaac_world surfaces, 054 T1) divides the rig's graph out and writes its road class's curve (asphalt: peak 1.12, sliding 0.8)"}
   brakes: {assumed: true, basis: "a race build: no ABS (a drift car's brakes lock on purpose), a static split, a fast hydraulic response"}
   powertrain: {assumed: true, basis: "an electric drift build in the spec's ev model: 330 kW (about 230 W/kg, as TUM's drifting AMG GT's 214), 700 N m through 6:1, the rear axle; no traction control; a locked (spooled) rear differential, as drift builds weld theirs (sim_vehicle_ecu's `locked`, fa846d2 / 142c9a6)"}
   resistance: {assumed: true, basis: "a 1960s fastback: Cd about 0.45, frontal area about 1.9 m^2; sticky tires roll harder"}
   suspension: {assumed: true, basis: "stiffer than a sedan's: 2 Hz, damping 0.5, 15 cm travel"}
   isaac.physx: {basis: "the Model 3's: csb roadmap 043's braking fix"}
   carla.physics: {assumed: true, basis: "the Model 3's scales; drag_area the body's box (1.895 x 1.301 m), body_com the box centre, rear_axle_x measured"}
+  carla.physics.max_steer_angle_deg: {basis: "measured: vehicle.ford.mustang's physics_control front wheels, 70.0 deg (CARLA 0.9.16, 2026-10-27). Ackermann at the 58 deg bicycle angle puts the inner wheel at 70.7 deg, which CARLA caps at 70"}
   sensors: {basis: "the Model 3's kit, mounted 0.2 m lower for the lower roof"}

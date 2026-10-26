@@ -1,12 +1,12 @@
-# Generated from vehicles/drift_mustang.yaml (spec_hash caa62ce28c665f6577dd14550f856fb4450ca132fbb4762a07cf651015f3347b) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
+# Generated from vehicles/drift_mustang.yaml (spec_hash 1816a24d44d1c9a311fe76471d9c46563182ebff1e893c34bf22d21f88f87cec) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
 # CARLA's physics for the car (VehiclePhysicsControl): applied to the ego by the CARLA
 # world server after the spawn (with SSv2) or by acb_bridge on attach (standalone), and
 # read back by acb_bridge. SI units; wheels front left, front right, rear left, rear
 # right; center_of_mass is CARLA's nudge of the body's own (CARLA's axes, y right).
 # Not modelled by CARLA, named here: the rear-wheel drive (CARLA drives its 4W
 # differential), ABS, regen and traction control, rolling resistance.
-spec_hash: caa62ce28c665f6577dd14550f856fb4450ca132fbb4762a07cf651015f3347b
-physics_hash: cfd787a30d8ca44095cb7aa802b5e950f9ebea272e7b82ddceb4c650eec26383
+spec_hash: 1816a24d44d1c9a311fe76471d9c46563182ebff1e893c34bf22d21f88f87cec
+physics_hash: 933597f525ffc121a9d64cd055d27330ceb44857c1a54013caf847b07731092c
 blueprint: vehicle.ford.mustang
 vehicle:
   mass: 1450.0
@@ -35,11 +35,11 @@ vehicle:
   damping_rate_zero_throttle_clutch_disengaged: 0.01
 wheels:
 - {tire_friction: 1.2, damping_rate: 0.25, max_steer_angle_deg: 70.0, radius_m: 0.32, max_brake_torque: 2500.0,
-  max_handbrake_torque: 0.0, lat_stiff_max_load: 2.0, lat_stiff_value: 17.0, long_stiff_value: 3556.0}
+  max_handbrake_torque: 0.0, lat_stiff_max_load: 2.0, lat_stiff_value: 17.0, long_stiff_value: 3625.0}
 - {tire_friction: 1.2, damping_rate: 0.25, max_steer_angle_deg: 70.0, radius_m: 0.32, max_brake_torque: 2500.0,
-  max_handbrake_torque: 0.0, lat_stiff_max_load: 2.0, lat_stiff_value: 17.0, long_stiff_value: 3556.0}
+  max_handbrake_torque: 0.0, lat_stiff_max_load: 2.0, lat_stiff_value: 17.0, long_stiff_value: 3625.0}
 - {tire_friction: 1.2, damping_rate: 0.25, max_steer_angle_deg: 0.0, radius_m: 0.32, max_brake_torque: 2500.0,
-  max_handbrake_torque: 1200.0, lat_stiff_max_load: 2.0, lat_stiff_value: 17.0, long_stiff_value: 3556.0}
+  max_handbrake_torque: 1200.0, lat_stiff_max_load: 2.0, lat_stiff_value: 17.0, long_stiff_value: 3625.0}
 - {tire_friction: 1.2, damping_rate: 0.25, max_steer_angle_deg: 0.0, radius_m: 0.32, max_brake_torque: 2500.0,
-  max_handbrake_torque: 1200.0, lat_stiff_max_load: 2.0, lat_stiff_value: 17.0, long_stiff_value: 3556.0}
+  max_handbrake_torque: 1200.0, lat_stiff_max_load: 2.0, lat_stiff_value: 17.0, long_stiff_value: 3625.0}
 command_lags: {brake_dead_time: 0.05, brake_time_constant: 0.04, motor_time_constant: 0.02}

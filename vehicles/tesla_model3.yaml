@@ -130,8 +130,11 @@ isaac:
     min_lateral_slip_denominator: 1.0
     sticky_tire_threshold_speed: 0.2
     sticky_tire_threshold_time: 1.0
+    # Lateral as stiff as longitudinal: at 20 the car parked across a 3 % road camber crept
+    # sideways 1.5 cm/s (0.9 m in 60 s, enough to drag NDT off and refuse an engage); at 200,
+    # 0.1 cm in 60 s (csb roadmap 059 N8).
     longitudinal_sticky_tire_damping: 200.0
-    lateral_sticky_tire_damping: 20.0
+    lateral_sticky_tire_damping: 200.0
 
 carla:
   # What CARLA's PhysX vehicle needs beyond the sections above (roadmap 051 K3): the body's own

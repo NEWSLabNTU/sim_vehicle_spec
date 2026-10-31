@@ -52,6 +52,23 @@ class ShippedSpecTest(unittest.TestCase):
         self.assertFalse(s["camera6"]["enabled"])
         self.assertEqual(s["top"]["key"], "velodyne_top_base_link")
 
+    def test_zed_left_on_the_mustang(self):
+        spec = specmod.load(Path(ROOT, "vehicles", "drift_mustang.yaml"))
+        z = specmod.sensors(spec)["zed_left"]
+        self.assertEqual((z["type"], z["width"], z["height"], z["horizontal_fov"], z["rate_hz"]),
+                         ("camera", 960, 600, 110.0, 30.0))
+        self.assertTrue(z["enabled"])
+        self.assertNotIn("carla", spec.doc["sensors"]["zed_left"])
+        self.assertEqual((z["topic"], z["info_topic"], z["link"], z["frame"]),
+                         ("/sensing/camera/zed/image_raw", "/sensing/camera/zed/camera_info",
+                          "zed_left/camera_link", "zed_left/camera_optical_link"))
+        (x, y, h), _ = z["base_link"]
+        self.assertEqual((round(x, 3), y, round(h, 3)), (1.45, 0.0, 1.2))
+        (cx, _, _), (lx, _, lz) = specmod.box(spec)
+        self.assertTrue(cx - lx / 2 < x < cx + lx / 2 and h < lz)
+        out = gen.outputs(ROOT)["generated/drift_mustang/carla_sensors.yaml"]
+        self.assertNotIn("zed", out)
+
     def test_camera_intrinsics(self):
         k = specmod.camera_intrinsics(1280, 720, 90.0)
         self.assertAlmostEqual(k[0], 640.0)

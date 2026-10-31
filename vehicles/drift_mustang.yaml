@@ -167,6 +167,26 @@ sensors:
     carla:
       key: camera6/camera_link
       blueprint: sensor.camera.rgb
+  zed_left:
+    # Roadmap 063: the ZED X's left eye for rig_localization (camera + IMU + wheel odometry).
+    # Isaac only: CARLA gets no block, so it is not spawned there.
+    type: camera
+    calibration_key: zed_left/camera_link
+    link: zed_left/camera_link
+    frame: zed_left/camera_optical_link
+    topic: /sensing/camera/zed/image_raw
+    info_topic: /sensing/camera/zed/camera_info
+    # Behind the windshield's top, on the centre line, level. In base_link (rear axle) the
+    # camera is at x 1.45, z 1.20: the body box is x -1.003..3.715, 1.301 m high; the
+    # windshield header of the 1966 body sits about 1.5 m ahead of the rear axle, so 0.05 m
+    # behind it, 0.10 m under the roof. The sensor_kit is at (0.9, 0, 1.8): mount = base - kit.
+    mount: {x: 0.55, y: 0.0, z: -0.6, roll: 0.0, pitch: 0.0, yaw: 0.0}
+    width: 960              # HD1200 (1920 x 1200) at the wrapper's downscale 2
+    height: 600
+    horizontal_fov: 110.0   # deg (about 84 vertical at 960 x 600; the lens is near 80)
+    rate_hz: 30.0
+    isaac:
+      enabled: true
   imu:
     type: imu
     calibration_key: imu_link

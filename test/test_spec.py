@@ -80,6 +80,14 @@ class ValidationTest(unittest.TestCase):
         del d["geometry"]["wheel_base"]
         self.refused(d, "geometry: missing ['wheel_base']")
 
+    def test_ground_clearance_sits_under_the_axle(self):
+        d = doc()
+        self.assertEqual(d["body"]["ground_clearance"], 0.138)
+        d["body"]["ground_clearance"] = 0.5
+        self.refused(d, "body.ground_clearance must be positive and below the wheel radius")
+        del d["body"]["ground_clearance"]
+        specmod.validate(d)
+
     def test_a_powertrain_must_be_known(self):
         d = doc()
         d["powertrain"]["model"] = "steam"

@@ -24,7 +24,7 @@ MOUNT_KEYS = ("x", "y", "z", "roll", "pitch", "yaw")
 
 # section -> (required keys, optional keys)
 SECTIONS = {
-    "body": ((), ("catalogue_model",)),
+    "body": ((), ("catalogue_model", "ground_clearance")),
     "geometry": (("wheel_base", "wheel_tread", "wheel_radius", "wheel_width", "front_overhang",
                   "rear_overhang", "left_overhang", "right_overhang", "vehicle_height",
                   "max_steer_angle"), ()),
@@ -199,6 +199,9 @@ def validate(doc, where="spec"):
     for k in ("wheel_base", "wheel_tread", "wheel_radius", "wheel_width", "max_steer_angle"):
         if not float(g[k]) > 0:
             fail(f"geometry.{k} must be positive")
+    gc = (doc.get("body") or {}).get("ground_clearance")
+    if gc is not None and not 0.0 < float(gc) < float(g["wheel_radius"]):
+        fail("body.ground_clearance must be positive and below the wheel radius")
     if not 0.0 < float(doc["inertia"]["com_front_fraction"]) < 1.0:
         fail("inertia.com_front_fraction must be in (0, 1)")
     sensors = doc.get("sensors") or {}

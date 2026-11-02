@@ -1,7 +1,7 @@
-# Generated from vehicles/tesla_model3.yaml (spec_hash 471b03c3e3b2bf688e3d9fa5b17ccf6cb084fcdb8a4547da18221654baf90d69) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
+# Generated from vehicles/tesla_model3.yaml (spec_hash 480be4fd0d00a6b1c2b1ae697ac2c58795dbd9a7d693a62088d3a3023aa486f4) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
 # The sensors acb_bridge spawns on CARLA, keyed by the URDF frame each is mounted at
 # (the mounts come from Autoware's robot_description), with their blueprint attributes.
-spec_hash: 471b03c3e3b2bf688e3d9fa5b17ccf6cb084fcdb8a4547da18221654baf90d69
+spec_hash: 480be4fd0d00a6b1c2b1ae697ac2c58795dbd9a7d693a62088d3a3023aa486f4
 vehicle: {blueprint: vehicle.tesla.model3}
 sensors:
   top:

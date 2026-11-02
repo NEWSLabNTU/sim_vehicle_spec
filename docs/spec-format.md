@@ -25,7 +25,7 @@ Frame: base_link, the rear axle centre on the ground, x forward, y left, z up.
 | `spec_version` | yes | `2` |
 | `name` | yes | names everything generated: Autoware's packages (`<name>_description`, `<name>_sensor_kit_description`, ...), the catalog entry, `generated/<name>/` |
 | `description` | no | one line |
-| `body` | no | `catalogue_model`: the body, a CARLA blueprint id; also the Isaac vehicle catalogue's key and the catalog entry's `model3d` |
+| `body` | no | `catalogue_model`: the body, a CARLA blueprint id; also the Isaac vehicle catalogue's key and the catalog entry's `model3d`. `ground_clearance`: m, unladen, from the road to the underbody's lowest point between the axles; the Isaac rig puts a skid plate there (without it, nothing under the body collides). Not a physics section: moving it leaves the pedal maps alone |
 | `geometry` | yes | below |
 | `mirror` | yes | Autoware's `mirror.param.yaml` keys, as is |
 | `inertia` | yes | below |

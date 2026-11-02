@@ -24,6 +24,9 @@ body:
   # (CARLA's vehicles exported to USD, SWB_VEHICLE_USD) and the SSv2 catalog entry's vehicle
   # name. Without an Isaac catalogue the chassis is the box below.
   catalogue_model: vehicle.tesla.model3
+  # Unladen: from the road to the underbody's lowest point, between the axles. The Isaac
+  # rig puts a skid plate there; a rock or a ridge taller than it strikes the body.
+  ground_clearance: 0.138
 
 # What Autoware plans with (vehicle_info), and the PhysX wheel layout. base_link is the rear
 # axle centre on the ground, x forward, y left, z up. Metres, radians.
@@ -233,6 +236,7 @@ sensors:
 # Where each number comes from. `assumed: true` marks an estimate to replace with a
 # measurement when one exists.
 provenance:
+  body.ground_clearance: {basis: "Tesla Model 3 specifications (Rear-Wheel Drive, 2024-2026): ground clearance 138 mm (5.4 in), unladen. The real car's figure on the CARLA body's larger wheel: the underbody is where Tesla puts it, not raised with the wheel"}
   geometry: {basis: "CARLA 0.9.16 vehicle.tesla.model3, measured: wheel base, track and radius from physics_control (acb's extract_vehicle_params.py, swb's blueprint table); the overhangs from the actor's box against the axles (roadmap 050: the rear axle is 1.386 m behind the actor origin, the box centre 0.029 ahead, so 0.807 front and 0.980 rear (the body 4.792 m with the 3.005 m wheel base, itself 3.0046 rounded), not the 0.923 / 0.864 a centred wheel base gives). A real Model 3 is 2.875 / 1.58 / 0.334 m; kept so Autoware, the body and the physics are one car"}
   inertia.mass: {basis: "Model 3 RWD (2024) curb mass 1760 kg (evspecifications.com/en/model/5f1c3d0)"}
   inertia.com_front_fraction: {assumed: true, basis: "road-test weight splits around 47-48 % front; the RWD's rear motor puts it at the low end"}

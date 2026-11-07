@@ -156,7 +156,7 @@ sensors:
     frame: zed_left_camera_optical_frame
     topic: /sensing/camera/zed/rgb/color/rect/image
     info_topic: /sensing/camera/zed/rgb/color/rect/camera_info
-    mount: {x: 0.0, y: 0.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw: 0.0}
+    mount: {x: 2.225473859, y: 0.032849606, z: -1.537299588, roll: 0.016835173, pitch: -0.037701763, yaw: 0.006832191}
     width: 1920
     height: 1200
     horizontal_fov: 110.0
@@ -170,7 +170,7 @@ sensors:
     frame: camera_left_optical_link
     topic: /sensing/camera/left/image_raw
     info_topic: /sensing/camera/left/camera_info
-    mount: {x: 0.0, y: 0.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw: 0.0}
+    mount: {x: 0.9426154546835364, y: 0.5584876525550044, z: -1.1269152055909257, roll: -0.08157476261707551, pitch: -0.1090220082688429, yaw: 0.7341035203898821}
     width: 1920
     height: 1280
     horizontal_fov: 88.4
@@ -184,7 +184,7 @@ sensors:
     frame: camera_right_optical_link
     topic: /sensing/camera/right/image_raw
     info_topic: /sensing/camera/right/camera_info
-    mount: {x: 0.0, y: 0.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw: 0.0}
+    mount: {x: 0.9795053939071179, y: -0.4553600340666411, z: -1.1362438424601349, roll: 0.028163430272001973, pitch: -0.08230178821024782, yaw: -0.09271942248981242}
     width: 1920
     height: 1280
     horizontal_fov: 88.4
@@ -198,7 +198,7 @@ sensors:
     frame: camera_rear_optical_link
     topic: /sensing/camera/rear/image_raw
     info_topic: /sensing/camera/rear/camera_info
-    mount: {x: 0.0, y: 0.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw: 0.0}
+    mount: {x: -0.906242929, y: 0.02847863, z: -1.695602761, roll: -0.016802674, pitch: 0.031973444, yaw: 3.141052803}
     width: 1920
     height: 1280
     horizontal_fov: 88.4
@@ -211,7 +211,7 @@ sensors:
     link: imu_link
     frame: imu_link
     topic: /sensing/imu/xsens/imu_raw
-    mount: {x: 0.0, y: 0.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw: 0.0}
+    mount: {x: -1.124434567, y: 0.033220893, z: -0.191518348, roll: 0.016802589, pitch: -0.031973489, yaw: -0.000537196}
     rate_hz: 100.0
     isaac:
       enabled: true
@@ -221,7 +221,7 @@ sensors:
     link: gnss_base_link
     frame: gnss_base_link
     topic: /sensing/gnss/ublox/nav_sat_fix
-    mount: {x: 0.0, y: 0.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw: 0.0}
+    mount: {x: 0.37863526, y: 0.004433895, z: -0.263991818, roll: 0.016802589, pitch: -0.031973489, yaw: -0.000537196}
     rate_hz: 1.0
     isaac:
       enabled: true

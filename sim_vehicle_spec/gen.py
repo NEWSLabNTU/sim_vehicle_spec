@@ -7,6 +7,16 @@
     python3 -m sim_vehicle_spec.gen [--root .]           # write
     python3 -m sim_vehicle_spec.gen [--root .] --check   # exit 1 when one is stale
 
+For a car kept outside this repository (a user's own, docs/vehicle-from-another-repository
+in autoware_isaac_bridge), the same outputs for one spec, anywhere:
+
+    python3 -m sim_vehicle_spec.gen --spec <car.yaml> --catalog <vehicles.xosc> \
+        [--spec-hash <spec_hash.yaml>] [--carla <dir>] [--check]
+
+--catalog is that car's SSv2 vehicle catalog (the bridge's vehicle_catalogs, a scenario's
+CatalogLocations); --spec-hash is the YAML the vehicle agent registers (its spec_hash_file);
+--carla writes carla_sensors.yaml and carla_physics.yaml there.
+
 Every file starts with a header naming the spec and its spec_hash. Other repositories generate
 their own outputs with this library (autoware_sim_vehicle: Autoware's packages;
 autoware_isaac_bridge: the Isaac rig).
@@ -228,11 +238,50 @@ def outputs(root):
     return out
 
 
+def single(spec_path, catalog_path=None, spec_hash_path=None, carla_dir=None):
+    """{absolute path: content} of one spec's outputs, each header naming the spec relative to
+    the output."""
+    import os
+
+    spec_path = Path(spec_path).resolve()
+    s = specmod.load(spec_path)
+    rel = lambda out: os.path.relpath(spec_path, Path(out).resolve().parent)  # noqa: E731
+    out = {}
+    if catalog_path:
+        out[str(Path(catalog_path).resolve())] = catalog([s], [rel(catalog_path)])
+    if spec_hash_path:
+        out[str(Path(spec_hash_path).resolve())] = (
+            emit.comment(emit.header(s, TOOL, rel(spec_hash_path)))
+            + f"spec_hash: {specmod.spec_hash(s)}\n")
+    if carla_dir:
+        d = Path(carla_dir).resolve()
+        out[str(d / "carla_sensors.yaml")] = carla_sensors(s, emit.header(s, TOOL, rel(d / "x")))
+        if carla_physics_doc(s) is not None:
+            out[str(d / "carla_physics.yaml")] = carla_physics(s, emit.header(s, TOOL, rel(d / "x")))
+    return out
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--root", type=Path, default=Path(__file__).resolve().parent.parent)
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--spec", type=Path, help="one spec, anywhere (with --catalog, --spec-hash or --carla)")
+    ap.add_argument("--catalog", type=Path, help="the spec's SSv2 vehicle catalog to write")
+    ap.add_argument("--spec-hash", type=Path, help="a YAML with the spec's spec_hash to write")
+    ap.add_argument("--carla", type=Path, help="a directory for the spec's CARLA files")
     args = ap.parse_args(argv)
+    if args.spec is not None:
+        if not (args.catalog or args.spec_hash or args.carla):
+            ap.error("--spec needs --catalog, --spec-hash or --carla")
+        out = single(args.spec, args.catalog, args.spec_hash, args.carla)
+        if args.check:
+            stale = emit.stale(out, "/")
+            for p in stale:
+                print(f"stale: {p}", file=sys.stderr)
+            return 1 if stale else 0
+        for p in emit.write(out, "/"):
+            print(f"wrote {p}")
+        return 0
     out = outputs(args.root)
     if args.check:
         stale = emit.stale(out, args.root)

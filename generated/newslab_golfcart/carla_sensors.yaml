@@ -1,0 +1,6 @@
+# Generated from vehicles/newslab_golfcart.yaml (spec_hash 14029812c96707a7c4988bc0e5d8b5402453f4aa155629e30cb41eafb18a2c37) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
+# The sensors acb_bridge spawns on CARLA, keyed by the URDF frame each is mounted at
+# (the mounts come from Autoware's robot_description), with their blueprint attributes.
+spec_hash: 14029812c96707a7c4988bc0e5d8b5402453f4aa155629e30cb41eafb18a2c37
+vehicle: {blueprint: vehicle.newslab.golfcart}
+sensors: {}

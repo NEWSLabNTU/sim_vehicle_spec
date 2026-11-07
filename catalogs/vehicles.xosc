@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Generated from vehicles/drift_mustang.yaml (spec_hash 65f1ba86a28fd88003747a5fb8a5ab8df0ab11c55e778a4b7ea1f9ab553c40ae) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate. -->
-<!-- Generated from vehicles/newslab_golfcart.yaml (spec_hash f84c24a1a99428690c67c726009163032e0e474e4ba73e7ffde48aed0461b417) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate. -->
+<!-- Generated from vehicles/newslab_golfcart.yaml (spec_hash fe75c5d5295c767e13092b9863afaba45b9317fe082af87023c1a94e2295ae06) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate. -->
 <!-- Generated from vehicles/tesla_model3.yaml (spec_hash 480be4fd0d00a6b1c2b1ae697ac2c58795dbd9a7d693a62088d3a3023aa486f4) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate. -->
 <!-- The simulated cars as SSv2 vehicles: one entry per spec, its body box and axles in the
      spec's base_link (the rear axle centre on the ground), model3d its body. A scenario refers to
@@ -35,7 +35,7 @@
         <RearAxle maxSteering="0.0" positionX="0.0" wheelDiameter="0.53" trackWidth="1.213" positionZ="0.265" />
       </Axles>
       <Properties>
-        <Property name="swb.spec_hash" value="f84c24a1a99428690c67c726009163032e0e474e4ba73e7ffde48aed0461b417" />
+        <Property name="swb.spec_hash" value="fe75c5d5295c767e13092b9863afaba45b9317fe082af87023c1a94e2295ae06" />
       </Properties>
     </Vehicle>
     <Vehicle name="tesla_model3" vehicleCategory="car" model3d="vehicle.tesla.model3">

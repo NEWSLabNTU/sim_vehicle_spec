@@ -104,6 +104,9 @@ sensors:
       key: <frame>                       #   the URDF frame it is mounted at
       blueprint: <sensor.*>
       attributes: {<name>: <value>}      #   CARLA's own; the shared fields give the rest
+      intensity:                         #   a lidar of blueprint sensor.lidar.ray_cast_semantic only (and required there)
+        reflectance: {<tag>: <0-255>}    #     by CARLA semantic tag name (Roads, Car, ...)
+        default: <0-255>                 #     for the tags not named (default 0)
     # lidar:  channels, rate_hz, range, vertical_fov
     # camera: width, height, horizontal_fov (deg), rate_hz, info_topic
     # imu, gnss: rate_hz
@@ -118,6 +121,15 @@ A sensor's CARLA attributes come from the shared fields where they say the same 
 `channels`, `range`, `rotation_frequency` from `rate_hz`, `upper_fov` and `lower_fov` from
 `vertical_fov`; camera: `image_size_x`, `image_size_y`, `fov`, `sensor_tick` from `rate_hz`;
 imu, gnss: `sensor_tick` from `rate_hz`), then from `carla.attributes`.
+
+A lidar's `carla.intensity` makes its points' intensity: acb_bridge publishes the semantic
+lidar's points with intensity `reflectance[tag] x |cos(incidence)|`, rounded and clamped to
+0-255 (a Lambertian surface seen by a lidar that reports reflectivity). The ray-cast lidar's
+own intensity is only the atmosphere's attenuation by range, the same on every surface, and a
+detector that reads intensity (TransFusion) finds nothing in it. The tags are CARLA 0.9.16's
+(`carla.CityObjectLabel`, `spec.CARLA_SEMANTIC_TAGS`); `carla_sensors.yaml` carries the table
+by tag id (`intensity.reflectance`, a list indexed by the tag), the default filled in. The
+semantic lidar has no attenuation, dropoff or noise attributes.
 
 ## CARLA's physics
 

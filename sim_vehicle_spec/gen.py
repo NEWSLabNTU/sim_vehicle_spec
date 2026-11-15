@@ -24,6 +24,7 @@ autoware_isaac_bridge: the Isaac rig).
 import argparse
 import math
 import sys
+import textwrap
 from pathlib import Path
 
 from . import emit
@@ -69,14 +70,21 @@ def carla_sensors(spec, header):
         carla = s.get("carla")
         if not carla:
             continue
-        sensors[carla.get("key", s["link"])] = {"blueprint": carla["blueprint"],
-                                                "parameters": carla_attributes(s)}
+        entry = {"blueprint": carla["blueprint"], "parameters": carla_attributes(s)}
+        if "intensity" in carla:
+            # By semantic tag id: acb_bridge indexes it with each point's tag.
+            entry["intensity"] = {"reflectance": specmod.lidar_reflectance(carla)}
+        sensors[carla.get("key", s["link"])] = entry
     doc = {"spec_hash": specmod.spec_hash(spec),
            "vehicle": {"blueprint": spec.section("body").get("catalogue_model", "")},
            "sensors": sensors}
     return emit.comment(header) + emit.comment(
         "The sensors acb_bridge spawns on CARLA, keyed by the URDF frame each is mounted at\n"
-        "(the mounts come from Autoware's robot_description), with their blueprint attributes.") \
+        "(the mounts come from Autoware's robot_description), with their blueprint attributes.\n"
+        "A semantic lidar's intensity is reflectance[its tag] x cos(incidence), clamped to 0-255;\n"
+        "reflectance is by CARLA semantic tag id:\n"
+        + textwrap.fill(", ".join(f"{i}={n}" for i, n in enumerate(specmod.CARLA_SEMANTIC_TAGS)),
+                        88)) \
         + emit.yaml_text(doc)
 
 

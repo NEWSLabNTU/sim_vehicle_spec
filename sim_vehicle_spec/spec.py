@@ -61,7 +61,20 @@ CARLA_PHYSICS_KEYS = ("tire_friction_scale", "drag_area", "body_com", "rear_axle
                       "max_steer_angle_deg", "engine_moi", "engine_damping")
 # A sensor's carla: the key acb_bridge spawns it under (a TF frame of the URDF), the CARLA
 # blueprint, and the attributes not derived from the shared fields.
-CARLA_SENSOR_KEYS = ("key", "blueprint", "attributes")
+CARLA_SENSOR_KEYS = ("key", "blueprint", "attributes", "intensity")
+# A lidar's carla.intensity (with sensor.lidar.ray_cast_semantic): each point's intensity is
+# reflectance[its semantic tag] x cos(incidence), clamped to 0-255 -- a Lambertian surface
+# seen by a sensor that reports reflectivity, as a real lidar's intensity is. CARLA's own
+# ray-cast intensity is only the atmosphere's attenuation by range (1.0 with none), the same
+# on the road as on a car.
+SEMANTIC_LIDAR = "sensor.lidar.ray_cast_semantic"
+LIDAR_INTENSITY_KEYS = ("default", "reflectance")
+# CARLA 0.9.16's semantic tags (carla.CityObjectLabel), by id: the names reflectance takes.
+CARLA_SEMANTIC_TAGS = ("NONE", "Roads", "Sidewalks", "Buildings", "Walls", "Fences", "Poles",
+                       "TrafficLight", "TrafficSigns", "Vegetation", "Terrain", "Sky",
+                       "Pedestrians", "Rider", "Car", "Truck", "Bus", "Train", "Motorcycle",
+                       "Bicycle", "Static", "Dynamic", "Other", "Water", "RoadLines", "Ground",
+                       "Bridge", "RailTrack", "GuardRail")
 TOP = {"spec_version", "name", "description", "sensors", "provenance", *SECTIONS}
 SENSOR_COMMON = ("type", "calibration_key", "link", "frame", "topic", "mount", "isaac", "carla")
 SENSOR_EXTRA = {
@@ -240,12 +253,45 @@ def validate(doc, where="spec"):
                 fail(f"{where_s}.carla: unknown key(s) {sorted(extra)}")
             if "blueprint" not in carla:
                 fail(f"{where_s}.carla: missing blueprint")
+            _check_intensity(t, carla, f"{where_s}.carla", fail)
     for key, entry in (doc.get("provenance") or {}).items():
         head = key.split(".")[0]
         if head not in TOP:
             fail(f"provenance.{key}: no such section")
         if not isinstance(entry, dict) or "basis" not in entry:
             fail(f"provenance.{key}: needs a basis")
+
+
+def _check_intensity(sensor_type, carla, where, fail):
+    """carla.intensity: on a semantic lidar, and only there; values 0-255, tags CARLA's."""
+    semantic = carla["blueprint"] == SEMANTIC_LIDAR
+    if "intensity" not in carla:
+        if semantic:
+            fail(f"{where}: a {SEMANTIC_LIDAR} needs intensity (its points carry no intensity)")
+        return
+    if sensor_type != "lidar" or not semantic:
+        fail(f"{where}.intensity: only a lidar of blueprint {SEMANTIC_LIDAR} takes it")
+    m = carla["intensity"]
+    if not isinstance(m, dict) or set(m) - set(LIDAR_INTENSITY_KEYS) or "reflectance" not in m:
+        fail(f"{where}.intensity: a mapping of reflectance (and default)")
+    r = m["reflectance"]
+    if not isinstance(r, dict) or not r:
+        fail(f"{where}.intensity.reflectance: a mapping of semantic tag to 0-255")
+    unknown = sorted(set(r) - set(CARLA_SEMANTIC_TAGS))
+    if unknown:
+        fail(f"{where}.intensity.reflectance: unknown tag(s) {unknown}; CARLA's are "
+             f"{', '.join(CARLA_SEMANTIC_TAGS)}")
+    for k, v in [*r.items(), ("default", m.get("default", 0))]:
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not 0 <= v <= 255:
+            fail(f"{where}.intensity: {k} {v!r} is not in 0-255")
+
+
+def lidar_reflectance(carla):
+    """A semantic lidar's reflectance by tag id (CARLA_SEMANTIC_TAGS), the default for the
+    tags the spec does not name."""
+    m = carla["intensity"]
+    d = float(m.get("default", 0))
+    return [float(m["reflectance"].get(name, d)) for name in CARLA_SEMANTIC_TAGS]
 
 
 def _check_mount(m, where, fail):

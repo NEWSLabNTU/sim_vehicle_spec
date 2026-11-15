@@ -1,14 +1,22 @@
-# Generated from vehicles/tesla_model3.yaml (spec_hash 480be4fd0d00a6b1c2b1ae697ac2c58795dbd9a7d693a62088d3a3023aa486f4) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
+# Generated from vehicles/tesla_model3.yaml (spec_hash 01b4d3f5273572098cee2052d1c0affe8aeded8d3c71ae2b27a57c350cbcb9f1) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
 # The sensors acb_bridge spawns on CARLA, keyed by the URDF frame each is mounted at
 # (the mounts come from Autoware's robot_description), with their blueprint attributes.
-spec_hash: 480be4fd0d00a6b1c2b1ae697ac2c58795dbd9a7d693a62088d3a3023aa486f4
+# A semantic lidar's intensity is reflectance[its tag] x cos(incidence), clamped to 0-255;
+# reflectance is by CARLA semantic tag id:
+# 0=NONE, 1=Roads, 2=Sidewalks, 3=Buildings, 4=Walls, 5=Fences, 6=Poles, 7=TrafficLight,
+# 8=TrafficSigns, 9=Vegetation, 10=Terrain, 11=Sky, 12=Pedestrians, 13=Rider, 14=Car,
+# 15=Truck, 16=Bus, 17=Train, 18=Motorcycle, 19=Bicycle, 20=Static, 21=Dynamic, 22=Other,
+# 23=Water, 24=RoadLines, 25=Ground, 26=Bridge, 27=RailTrack, 28=GuardRail
+spec_hash: 01b4d3f5273572098cee2052d1c0affe8aeded8d3c71ae2b27a57c350cbcb9f1
 vehicle: {blueprint: vehicle.tesla.model3}
 sensors:
   top:
-    blueprint: sensor.lidar.ray_cast
+    blueprint: sensor.lidar.ray_cast_semantic
     parameters: {channels: '128', range: '200.0', rotation_frequency: '20.0', upper_fov: '15.0', lower_fov: '-25.0',
-      points_per_second: '2621440', sensor_tick: '0.0', horizontal_fov: '360.0', atmosphere_attenuation_rate: '0.0',
-      dropoff_general_rate: '0.0', dropoff_intensity_limit: '1.0', dropoff_zero_intensity: '0.0', noise_stddev: '0.0'}
+      points_per_second: '2621440', sensor_tick: '0.0', horizontal_fov: '360.0'}
+    intensity:
+      reflectance: [30.0, 5.0, 12.0, 40.0, 40.0, 45.0, 50.0, 50.0, 150.0, 45.0, 20.0, 0.0, 50.0, 50.0,
+        90.0, 90.0, 90.0, 80.0, 80.0, 60.0, 40.0, 45.0, 30.0, 2.0, 50.0, 12.0, 25.0, 15.0, 60.0]
   camera6/camera_link:
     blueprint: sensor.camera.rgb
     parameters: {image_size_x: '1280', image_size_y: '720', fov: '74.5', sensor_tick: '0.1'}

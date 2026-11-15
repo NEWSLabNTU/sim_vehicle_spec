@@ -1,6 +1,12 @@
 # Generated from vehicles/drift_mustang.yaml (spec_hash 65f1ba86a28fd88003747a5fb8a5ab8df0ab11c55e778a4b7ea1f9ab553c40ae) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
 # The sensors acb_bridge spawns on CARLA, keyed by the URDF frame each is mounted at
 # (the mounts come from Autoware's robot_description), with their blueprint attributes.
+# A semantic lidar's intensity is reflectance[its tag] x cos(incidence), clamped to 0-255;
+# reflectance is by CARLA semantic tag id:
+# 0=NONE, 1=Roads, 2=Sidewalks, 3=Buildings, 4=Walls, 5=Fences, 6=Poles, 7=TrafficLight,
+# 8=TrafficSigns, 9=Vegetation, 10=Terrain, 11=Sky, 12=Pedestrians, 13=Rider, 14=Car,
+# 15=Truck, 16=Bus, 17=Train, 18=Motorcycle, 19=Bicycle, 20=Static, 21=Dynamic, 22=Other,
+# 23=Water, 24=RoadLines, 25=Ground, 26=Bridge, 27=RailTrack, 28=GuardRail
 spec_hash: 65f1ba86a28fd88003747a5fb8a5ab8df0ab11c55e778a4b7ea1f9ab553c40ae
 vehicle: {blueprint: vehicle.ford.mustang}
 sensors:

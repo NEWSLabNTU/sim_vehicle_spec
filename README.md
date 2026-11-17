@@ -38,7 +38,7 @@ never copies.
 - `spec_hash`: SHA-256 of the spec in canonical form (parsed, `description` and `provenance`
   dropped, JSON with sorted keys). Comments, layout and key order do not change it. Every
   output carries it, and the parts of a run compare the hashes they loaded: the world server
-  (`SpawnReply.body.spec_hash`), the vehicle agent, and the catalog entry's `swb.spec_hash`.
+  (`SpawnReply.body.spec_hash`), the vehicle agent, and the catalog entry's `scensim.spec_hash`.
 - `physics_hash`: the same over what drives the car (the physics sections and
   `carla.physics`). The pedal maps measured on CARLA carry it.
 
@@ -67,7 +67,7 @@ friction_scale)`. The keys, the compared fields and the tolerance:
 ## The SSv2 catalog
 
 `catalogs/vehicles.xosc` has one `Vehicle` per spec: its box and axles from the geometry,
-`model3d` the body, the `swb.spec_hash` property, and `maxSpeed`, `maxAcceleration`,
+`model3d` the body, the `scensim.spec_hash` property, and `maxSpeed`, `maxAcceleration`,
 `maxDeceleration`, `maxSteering` as parameters. The entries declare **no**
 `ParameterDeclarations` (in SSv2 a declared default shadows the reference's assignment), so
 every `CatalogReference` assigns all four. A scenario finds it at

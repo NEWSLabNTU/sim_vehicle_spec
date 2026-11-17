@@ -220,7 +220,7 @@ Applying it and reading it back:
 - `Performance maxSpeed="$maxSpeed" maxAcceleration="$maxAcceleration"
   maxDeceleration="$maxDeceleration"` and `FrontAxle maxSteering="$maxSteering"`: parameters
   every reference assigns, because what the scenario lets the car do is the scenario's;
-- `Properties`: `<Property name="swb.spec_hash" value="<spec_hash>"/>`. The scenario bridge
+- `Properties`: `<Property name="scensim.spec_hash" value="<spec_hash>"/>`. The scenario bridge
   reads the installed catalog (`share/sim_vehicle_spec/catalogs/vehicles.xosc` on
   `AMENT_PREFIX_PATH`) and keys entries by `model3d`, for its start check: SSv2 does not pass
   a catalog property on in the spawn.
@@ -270,7 +270,7 @@ included.
 Every generated file names the `spec_hash` of the spec it came from (a header line, and a
 `spec_hash` key where the format has room). Every part of a run reports the one it loaded:
 the world server in `SpawnReply.body.spec_hash`, the vehicle agent at registration (from
-`<name>_description/config/spec_hash.yaml`), and the catalog entry's `swb.spec_hash`
+`<name>_description/config/spec_hash.yaml`), and the catalog entry's `scensim.spec_hash`
 property. The scenario bridge refuses an ego whose parts disagree, naming who loaded which
 (roadmap 051). Standalone, acb_bridge compares its sensor file's hash with the Autoware
 packages' and warns.

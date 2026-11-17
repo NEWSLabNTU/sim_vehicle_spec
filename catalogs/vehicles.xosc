@@ -20,7 +20,7 @@
         <RearAxle maxSteering="0.0" positionX="0.0" wheelDiameter="0.64" trackWidth="1.586" positionZ="0.32" />
       </Axles>
       <Properties>
-        <Property name="swb.spec_hash" value="65f1ba86a28fd88003747a5fb8a5ab8df0ab11c55e778a4b7ea1f9ab553c40ae" />
+        <Property name="scensim.spec_hash" value="65f1ba86a28fd88003747a5fb8a5ab8df0ab11c55e778a4b7ea1f9ab553c40ae" />
       </Properties>
     </Vehicle>
     <Vehicle name="tesla_model3" vehicleCategory="car" model3d="vehicle.tesla.model3">
@@ -34,7 +34,7 @@
         <RearAxle maxSteering="0.0" positionX="0.0" wheelDiameter="0.74" trackWidth="1.667" positionZ="0.37" />
       </Axles>
       <Properties>
-        <Property name="swb.spec_hash" value="01b4d3f5273572098cee2052d1c0affe8aeded8d3c71ae2b27a57c350cbcb9f1" />
+        <Property name="scensim.spec_hash" value="01b4d3f5273572098cee2052d1c0affe8aeded8d3c71ae2b27a57c350cbcb9f1" />
       </Properties>
     </Vehicle>
   </Catalog>

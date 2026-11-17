@@ -205,7 +205,7 @@ def catalog_entry(spec):
         <RearAxle maxSteering="0.0" positionX="0.0" {axle} />
       </Axles>
       <Properties>
-        <Property name="swb.spec_hash" value="{specmod.spec_hash(spec)}" />
+        <Property name="scensim.spec_hash" value="{specmod.spec_hash(spec)}" />
       </Properties>
     </Vehicle>
 """

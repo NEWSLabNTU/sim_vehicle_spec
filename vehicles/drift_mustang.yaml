@@ -1,5 +1,5 @@
 # The drift car: a 1966 Ford Mustang restomod on CARLA's vehicle.ford.mustang body (BP_Mustang66),
-# built for drifting (scenario-world-bridge roadmap 057): light, 50:50, a strong rear motor,
+# built for drifting (scensim roadmap 057): light, 50:50, a strong rear motor,
 # a large steering lock, and no driver aids. Like Hoonigan's "Hoonicorn" (a 1965 Mustang).
 #
 # The geometry is the CARLA body's, measured; the rest is a plausible drift build, not one car's
@@ -50,7 +50,7 @@ tires:
   lat_stiff_value: 17.0
   long_stiff_value: 3625.0     # kg (x g): 10 x a quarter-car rest load, as the Model 3's
   # Grip falls further past the peak than the road car's: a spinning rear lets go. CARLA only:
-  # Isaac's surface layer writes its road class's own curve over it (swb roadmap 054 T1)
+  # Isaac's surface layer writes its road class's own curve over it (scensim roadmap 054 T1)
   friction_vs_slip: [[0.0, 1.0], [0.1, 1.0], [1.0, 0.7]]
 
 brakes:

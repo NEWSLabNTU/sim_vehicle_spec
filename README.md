@@ -2,7 +2,7 @@
 
 One YAML per simulated car (`vehicles/<name>.yaml`) is the single source of truth for that car
 on every simulator and for every consumer: Autoware, CARLA, Isaac Sim and
-scenario_simulator_v2 ([scensim](https://github.com/NEWSLabNTU/scenario-world-bridge)
+scenario_simulator_v2 ([scensim](https://github.com/NEWSLabNTU/scensim)
 roadmap 051). The format, version 2: [docs/spec-format.md](docs/spec-format.md).
 
 This repository holds the specs, the generator library every consumer uses, and the outputs no

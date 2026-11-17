@@ -159,7 +159,7 @@ for the vehicle bridge's command path, since CARLA's model has none.
 | `tire_friction_scale` | CARLA's tire friction for a tire friction of 1.0 (measured: 1.2 stops from 100 km/h in 42.8 m, as the spec's car does in Isaac) |
 | `drag_area` | m^2, what CARLA multiplies its drag coefficient by |
 | `body_com` | m, actor frame: the CoM UE computes for the body (CARLA does not expose it) |
-| `rear_axle_x` | m, actor frame: the rear axle (swb_carla_world's measured table) |
+| `rear_axle_x` | m, actor frame: the rear axle (scensim_carla_world's measured table) |
 | `max_steer_angle_deg` | the front wheels' limit (acb_bridge's steering map assumes it) |
 | `engine_moi`, `engine_damping` | CARLA's engine is a combustion engine's: an EV motor's light rotor and its small drag (measured: 0-100 km/h in 6.3 s, coasting 0.20 m/s^2 at 25 m/s) |
 
@@ -191,7 +191,7 @@ Applying it and reading it back:
   actor runs that the file does not say, as `"<field>: file X, actor Y"` strings, empty when
   it runs the file.
 - **Rust**, the crate `crates/carla_physics_spec` (its own workspace, a path dependency of
-  swb_carla_world and acb_bridge): `CarlaPhysics::load(path)` (refuses a file without four
+  scensim_carla_world and acb_bridge): `CarlaPhysics::load(path)` (refuses a file without four
   wheels), `peak_torque()`, `as_read_back()`, and `differences(&ReadBack, friction_scale)`.
   `ReadBack` holds what a consumer reads off the actor, in the file's units; `friction_scale`
   is the road's (1 on a dry road), so a world server that scales the tires for a wet road

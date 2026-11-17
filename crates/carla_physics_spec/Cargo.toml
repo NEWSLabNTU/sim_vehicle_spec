@@ -5,7 +5,7 @@ edition = "2021"
 license = "Apache-2.0"
 description = "sim_vehicle_spec's carla_physics.yaml as Rust types: what the CARLA world server applies and acb_bridge applies or reads back"
 
-# Its own workspace: a path dependency of swb_carla_world and acb_bridge, through deps/.
+# Its own workspace: a path dependency of scensim_carla_world and acb_bridge, through deps/.
 [workspace]
 
 [dependencies]

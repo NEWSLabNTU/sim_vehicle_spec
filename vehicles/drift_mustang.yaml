@@ -218,13 +218,13 @@ sensors:
 # Where each number comes from. `assumed: true` marks an estimate to replace with a
 # measurement when one exists.
 provenance:
-  geometry: {basis: "CARLA 0.9.16 vehicle.ford.mustang (BP_Mustang66), measured: axles at x 1.562 and -1.324 m from the actor, track 1.586 m, wheel radius 0.32 m and width 0.21 m (swb_carla_world's blueprint table, the Isaac catalogue's vehicles.json); overhangs from the render box (x -2.327 to 2.391 m, width 1.895 m) against the axles, the side ones from the track (wheel centres). A real 1966 Mustang has a 2.743 m wheel base; kept as the body is"}
+  geometry: {basis: "CARLA 0.9.16 vehicle.ford.mustang (BP_Mustang66), measured: axles at x 1.562 and -1.324 m from the actor, track 1.586 m, wheel radius 0.32 m and width 0.21 m (scensim_carla_world's blueprint table, the Isaac catalogue's vehicles.json); overhangs from the render box (x -2.327 to 2.391 m, width 1.895 m) against the axles, the side ones from the track (wheel centres). A real 1966 Mustang has a 2.743 m wheel base; kept as the body is"}
   geometry.max_steer_angle: {assumed: true, basis: "drift builds run 50-70 deg of lock (steering angle kits); 58 deg, within CARLA's 70 deg wheel limit"}
   inertia.mass: {assumed: true, basis: "a stripped 1960s Mustang restomod; Hoonigan's Hoonicorn V2 is about 1400 kg"}
   inertia.com_front_fraction: {assumed: true, basis: "a drift build's ~50:50 (research survey for roadmap 057: Toyota GR86, Nissan S15 builds)"}
   inertia.com_height: {assumed: true, basis: "a low coupe"}
   inertia.inertia_box: {assumed: true, basis: "uniform box of the body"}
-  tires.friction_vs_slip: {assumed: true, basis: "past the peak the grip falls to 0.7 of it when the wheel spins or locks (Burckhardt dry asphalt gives 0.65 of the peak locked); lower than the Model 3's 0.8 so a spinning rear lets go. Read by CARLA only: on Isaac the surface layer (swb_isaac_world surfaces, 054 T1) divides the rig's graph out and writes its road class's curve (asphalt: peak 1.12, sliding 0.8)"}
+  tires.friction_vs_slip: {assumed: true, basis: "past the peak the grip falls to 0.7 of it when the wheel spins or locks (Burckhardt dry asphalt gives 0.65 of the peak locked); lower than the Model 3's 0.8 so a spinning rear lets go. Read by CARLA only: on Isaac the surface layer (scensim_isaac_world surfaces, 054 T1) divides the rig's graph out and writes its road class's curve (asphalt: peak 1.12, sliding 0.8)"}
   brakes: {assumed: true, basis: "a race build: no ABS (a drift car's brakes lock on purpose), a static split, a fast hydraulic response"}
   powertrain: {assumed: true, basis: "an electric drift build in the spec's ev model: 330 kW (about 230 W/kg, as TUM's drifting AMG GT's 214), 700 N m through 6:1, the rear axle; no traction control; a locked (spooled) rear differential, as drift builds weld theirs (sim_vehicle_ecu's `locked`, fa846d2 / 142c9a6)"}
   resistance: {assumed: true, basis: "a 1960s fastback: Cd about 0.45, frontal area about 1.9 m^2; sticky tires roll harder"}

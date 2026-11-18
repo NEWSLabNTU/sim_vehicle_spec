@@ -16,7 +16,7 @@ single autopilot owns. It depends on nothing but Python 3 and PyYAML (and Rust f
 | `generated/<name>/carla_physics.yaml` | CARLA's physics for the car (`VehiclePhysicsControl` and the command lags); only for a spec with a body that has `carla.physics` |
 | `generated/<name>/carla_physics_1.0.yaml` | The same for CARLA 1.0's Chaos vehicle; only for a spec with a body that has `carla.physics_1_0` |
 | `catalogs/vehicles.xosc` | The SSv2 vehicle catalog: one entry per spec, at its default body |
-| `catalogs/vehicles_<body>.xosc` | The same for a spec's other bodies (`vehicles_carla-1.0.xosc`) |
+| `catalogs/<body>/vehicles.xosc` | The same for a spec's other bodies (`carla-1.0/vehicles.xosc`) |
 | `crates/carla_physics_spec/` | `carla_physics.yaml` and `carla_physics_1.0.yaml` (`chaos`) as Rust types, and the read-back comparisons |
 
 ## Who generates what

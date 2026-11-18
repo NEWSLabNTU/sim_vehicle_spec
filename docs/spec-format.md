@@ -7,7 +7,7 @@ repository:
 
 | output | repository | generator |
 |---|---|---|
-| `generated/<name>/carla_sensors.yaml`, `generated/<name>/carla_physics.yaml` (when a body has `carla.physics`), `generated/<name>/carla_physics_1.0.yaml` (when a body has `carla.physics_1_0`), `catalogs/vehicles.xosc`, `catalogs/vehicles_<body>.xosc` | sim_vehicle_spec | `python3 -m sim_vehicle_spec.gen` (`just generate`) |
+| `generated/<name>/carla_sensors.yaml`, `generated/<name>/carla_physics.yaml` (when a body has `carla.physics`), `generated/<name>/carla_physics_1.0.yaml` (when a body has `carla.physics_1_0`), `catalogs/vehicles.xosc`, `catalogs/<body>/vehicles.xosc` | sim_vehicle_spec | `python3 -m sim_vehicle_spec.gen` (`just generate`) |
 | `<name>_description`, `<name>_launch`, `<name>_sensor_kit_description`, `<name>_sensor_kit_launch`, `individual_params` | autoware_sim_vehicle | `python3 -m autoware_gen` (its `just generate`) |
 | the Isaac rig, `src/aib/config/<name>.rig.yaml` | autoware_isaac_bridge | `python3 -m aib.gen` (its `just generate`) |
 
@@ -62,7 +62,9 @@ None)` returns it). The shipped Tesla Model 3 has two: `carla-0.9.16` (CARLA 0.9
 that body exported) and `carla-1.0` (CARLA 1.0's, the real car's 2.876 m on a 0.336 m wheel).
 
 The generator writes each body's outputs: the default body's catalog entry in
-`catalogs/vehicles.xosc` and another body's in `catalogs/vehicles_<body>.xosc`;
+`catalogs/vehicles.xosc` and another body's in `catalogs/<body>/vehicles.xosc`, a directory
+of its own: SSv2 reads every file of a catalog directory and keeps the first catalog of a name
+it finds, so two `vehicles` catalogs side by side would be picked by the file system's order;
 `carla_physics.yaml` from the body with `carla.physics`, `carla_physics_1.0.yaml` from the
 body with `carla.physics_1_0`. A top-level `carla.physics` beside `bodies` is refused.
 

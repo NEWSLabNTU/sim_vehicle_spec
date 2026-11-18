@@ -4,10 +4,12 @@
     generated/<name>/carla_physics.yaml   CARLA's VehiclePhysicsControl for the car, and its lags
     generated/<name>/carla_physics_1.0.yaml  the same for CARLA 1.0's Chaos vehicle
     catalogs/vehicles.xosc               the SSv2 vehicle catalog (one entry per spec)
-    catalogs/vehicles_<body>.xosc        the same for each spec's other bodies
+    catalogs/<body>/vehicles.xosc        the same for each spec's other bodies
 
 A spec with bodies (roadmap 083) is generated as each of them (spec.effective): its first body
-is the default, whose catalog is vehicles.xosc; a CARLA physics file comes from the body that
+is the default, whose catalog is vehicles.xosc; another body's is <body>/vehicles.xosc, in a
+directory of its own, since SSv2 reads every file of a catalog directory and keeps the first
+catalog of a name it finds (both are `vehicles`). A CARLA physics file comes from the body that
 calibrates it (carla.physics: carla_physics.yaml, carla.physics_1_0: carla_physics_1.0.yaml).
 
     python3 -m sim_vehicle_spec.gen [--root .]           # write
@@ -350,12 +352,12 @@ def carla_files(spec, header):
 
 
 def catalog_name(body, default):
-    return "vehicles.xosc" if body == default else f"vehicles_{body}.xosc"
+    return "vehicles.xosc" if body == default else f"{body}/vehicles.xosc"
 
 
 def catalogs(specs, rels):
-    """{catalog file name: content}: each spec's default body in vehicles.xosc, its other
-    bodies in vehicles_<body>.xosc."""
+    """{catalog path under catalogs/: content}: each spec's default body in vehicles.xosc, its
+    other bodies in <body>/vehicles.xosc."""
     groups = {}
     for s, rel in zip(specs, rels):
         builds = as_bodies(s)
@@ -389,11 +391,14 @@ def single(spec_path, catalog_path=None, spec_hash_path=None, carla_dir=None):
     rel = lambda out: os.path.relpath(spec_path, Path(out).resolve().parent)  # noqa: E731
     out = {}
     if catalog_path:
-        # The default body's at catalog_path, each other body's beside it (<stem>_<body>.xosc).
+        # The default body's at catalog_path, each other body's in a directory beside it
+        # (<dir>/<body>/<file>: SSv2 keeps one catalog of a name per directory).
         c = Path(catalog_path).resolve()
         for name, text in catalogs([s], [rel(c)]).items():
-            out[str(c if name == "vehicles.xosc"
-                     else c.with_name(f"{c.stem}_{name[len('vehicles_'):]}"))] = text
+            dest = c if name == "vehicles.xosc" else c.parent / name.split("/")[0] / c.name
+            out[str(dest)] = (text if dest == c else
+                              catalog([specmod.effective(s, name.split("/")[0])],
+                                      [os.path.relpath(spec_path, dest.parent)]))
     if spec_hash_path:
         out[str(Path(spec_hash_path).resolve())] = (
             emit.comment(emit.header(s, TOOL, rel(spec_hash_path)))

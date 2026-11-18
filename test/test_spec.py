@@ -402,9 +402,16 @@ class GeneratedTest(unittest.TestCase):
     def test_each_body_has_its_catalog(self):
         out = gen.outputs(ROOT)
         self.assertIn('length="4.792"', out["catalogs/vehicles.xosc"])
-        one = out["catalogs/vehicles_carla-1.0.xosc"]
+        one = out["catalogs/carla-1.0/vehicles.xosc"]
         self.assertIn('<Dimensions width="2.088" height="1.443" length="4.694" />', one)
         self.assertNotIn("drift_mustang", one)
+        # one `vehicles` catalog per directory: SSv2 keeps the first of a name it finds
+        dirs = {}
+        for path in out:
+            if path.startswith("catalogs/"):
+                d = path.rsplit("/", 1)[0]
+                self.assertNotIn(d, dirs, f"{path} beside {dirs.get(d)}")
+                dirs[d] = path
 
 
 if __name__ == "__main__":

@@ -11,11 +11,13 @@ single autopilot owns. It depends on nothing but Python 3 and PyYAML (and Rust f
 | Path | What |
 |---|---|
 | `vehicles/` | The specs: `tesla_model3.yaml`, a Model 3 RWD on CARLA's `vehicle.tesla.model3` body |
-| `sim_vehicle_spec/` | The library: `spec` (load, validate, and what a spec gives: `box`, `axles`, `sensors`, `camera_intrinsics`, `spec_hash`, `physics_hash`), `emit` (how every repository writes generated files), `frames` (transforms), `gen` (this repository's outputs), `carla_physics` (`carla_physics.yaml` on a CARLA actor) |
+| `sim_vehicle_spec/` | The library: `spec` (load, validate, and what a spec gives: `effective` (the spec as one of its simulator bodies), `box`, `axles`, `sensors`, `camera_intrinsics`, `spec_hash`, `physics_hash`), `emit` (how every repository writes generated files), `frames` (transforms), `gen` (this repository's outputs), `carla_physics` (`carla_physics.yaml` on a CARLA actor) |
 | `generated/<name>/carla_sensors.yaml` | The sensors acb_bridge spawns on CARLA, keyed by the URDF frame each is mounted at, with their blueprint attributes |
-| `generated/<name>/carla_physics.yaml` | CARLA's physics for the car (`VehiclePhysicsControl` and the command lags); only for a spec with `carla.physics` |
-| `catalogs/vehicles.xosc` | The SSv2 vehicle catalog: one entry per spec |
-| `crates/carla_physics_spec/` | `carla_physics.yaml` as Rust types, and the read-back comparison |
+| `generated/<name>/carla_physics.yaml` | CARLA's physics for the car (`VehiclePhysicsControl` and the command lags); only for a spec with a body that has `carla.physics` |
+| `generated/<name>/carla_physics_1.0.yaml` | The same for CARLA 1.0's Chaos vehicle; only for a spec with a body that has `carla.physics_1_0` |
+| `catalogs/vehicles.xosc` | The SSv2 vehicle catalog: one entry per spec, at its default body |
+| `catalogs/vehicles_<body>.xosc` | The same for a spec's other bodies (`vehicles_carla-1.0.xosc`) |
+| `crates/carla_physics_spec/` | `carla_physics.yaml` and `carla_physics_1.0.yaml` (`chaos`) as Rust types, and the read-back comparisons |
 
 ## Who generates what
 

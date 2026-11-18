@@ -2,10 +2,13 @@
 //! generated from its vehicle spec. SI units; wheels in CARLA's order (front left, front
 //! right, rear left, rear right). A consumer maps it onto carla-rust's
 //! `VehiclePhysicsControl` (radius in centimetres there) and compares a read-back with
-//! [`CarlaPhysics::differences`].
+//! [`CarlaPhysics::differences`]. CARLA 1.0's file is [`chaos::ChaosPhysics`].
 
 use serde::Deserialize;
 use std::path::Path;
+
+/// CARLA 1.0's physics file, `carla_physics_1.0.yaml` (Chaos; roadmap 083 step 5).
+pub mod chaos;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct CarlaPhysics {

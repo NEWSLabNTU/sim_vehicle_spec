@@ -7,7 +7,7 @@ repository:
 
 | output | repository | generator |
 |---|---|---|
-| `generated/<name>/carla_sensors.yaml`, `generated/<name>/carla_physics.yaml` (when the spec has `carla.physics`), `catalogs/vehicles.xosc` | sim_vehicle_spec | `python3 -m sim_vehicle_spec.gen` (`just generate`) |
+| `generated/<name>/carla_sensors.yaml`, `generated/<name>/carla_physics.yaml` (when a body has `carla.physics`), `generated/<name>/carla_physics_1.0.yaml` (when a body has `carla.physics_1_0`), `catalogs/vehicles.xosc`, `catalogs/vehicles_<body>.xosc` | sim_vehicle_spec | `python3 -m sim_vehicle_spec.gen` (`just generate`) |
 | `<name>_description`, `<name>_launch`, `<name>_sensor_kit_description`, `<name>_sensor_kit_launch`, `individual_params` | autoware_sim_vehicle | `python3 -m autoware_gen` (its `just generate`) |
 | the Isaac rig, `src/aib/config/<name>.rig.yaml` | autoware_isaac_bridge | `python3 -m aib.gen` (its `just generate`) |
 
@@ -25,17 +25,46 @@ Frame: base_link, the rear axle centre on the ground, x forward, y left, z up.
 | `spec_version` | yes | `2` |
 | `name` | yes | names everything generated: Autoware's packages (`<name>_description`, `<name>_sensor_kit_description`, ...), the catalog entry, `generated/<name>/` |
 | `description` | no | one line |
-| `body` | no | `catalogue_model`: the body, a CARLA blueprint id; also the Isaac vehicle catalogue's key and the catalog entry's `model3d`. `ground_clearance`: m, unladen, from the road to the underbody's lowest point between the axles; the Isaac rig puts a skid plate there (without it, nothing under the body collides). Not a physics section: moving it leaves the pedal maps alone |
-| `geometry` | yes | below |
+| `body` | no | `catalogue_model`: the body, a CARLA blueprint id (with `bodies`, each body's own); also the Isaac vehicle catalogue's key and the catalog entry's `model3d`. `ground_clearance`: m, unladen, from the road to the underbody's lowest point between the axles; the Isaac rig puts a skid plate there (without it, nothing under the body collides). Not a physics section: moving it leaves the pedal maps alone |
+| `geometry` | yes | below; with `bodies`, the real car's |
 | `mirror` | yes | Autoware's `mirror.param.yaml` keys, as is |
 | `inertia` | yes | below |
 | `wheels`, `tires`, `brakes`, `powertrain`, `suspension` | yes | below |
 | `resistance`, `steering` | no | below |
 | `isaac` | no | `physx`: the PhysX vehicle's solver settings (below) |
-| `carla` | no | `physics`: what CARLA's model needs beyond the physics sections ("CARLA's physics") |
+| `carla` | no | without `bodies`: `physics`, what CARLA's model needs beyond the physics sections ("CARLA's physics"); with `bodies`, a body's |
+| `bodies` | no | name -> the body a simulator drives ("Bodies") |
+| `simulators` | no | simulator -> the name of the body it drives, for a simulator whose body is not named for it (`isaac: carla-0.9.16`) |
 | `sensor_kit` | yes | `mount`: base_link -> sensor_kit_base_link |
 | `sensors` | no | name -> sensor, below |
 | `provenance` | no | where numbers come from, below |
+
+## Bodies
+
+A simulator drives a body: an asset with its own dimensions, which may not be the car's. A
+spec with `bodies` describes the real car in `geometry` and `powertrain`, and each body as a
+measured section:
+
+| key | required | |
+|---|---|---|
+| `catalogue_model` | yes | the body's CARLA blueprint id (the catalog entry's `model3d`) |
+| `geometry` | yes | every geometry key, the body's (measured from the asset) |
+| `powertrain` | no | `gear_ratio`, `regen_max_torque`: the reduction scaled to the body's wheel, the real ratio times the body's radius over the real radius, so the force at the road and the motor speed per road speed are the real car's |
+| `carla` | no | the body's simulator calibration: `physics` (CARLA 0.9.16's PhysX vehicle) or `physics_1_0` (CARLA 1.0's Chaos vehicle) |
+
+`sim_vehicle_spec.spec.effective(spec, body)` is the spec as that body: the spec's document
+with the body's geometry, its powertrain keys, its catalogue model and its `carla` in place of
+the spec's, `bodies` and `simulators` dropped. Every consumer that builds a simulator's car
+takes it; `bodies(spec)` lists the names, the default first, and `simulator_body(spec,
+simulator)` reads `simulators`. A spec without `bodies` is its own body (`effective(spec,
+None)` returns it). The shipped Tesla Model 3 has two: `carla-0.9.16` (CARLA 0.9.16's
+`vehicle.tesla.model3`, 3.005 m wheel base on a 0.370 m wheel; also Isaac's, whose asset is
+that body exported) and `carla-1.0` (CARLA 1.0's, the real car's 2.876 m on a 0.336 m wheel).
+
+The generator writes each body's outputs: the default body's catalog entry in
+`catalogs/vehicles.xosc` and another body's in `catalogs/vehicles_<body>.xosc`;
+`carla_physics.yaml` from the body with `carla.physics`, `carla_physics_1.0.yaml` from the
+body with `carla.physics_1_0`. A top-level `carla.physics` beside `bodies` is refused.
 
 ## Geometry -> vehicle_info
 
@@ -205,6 +234,30 @@ Applying it and reading it back:
   `apply_physics_control` returns the old values. The CARLA world server applies the file,
   ticks once, then compares and refuses an actor that differs.
 
+## CARLA 1.0's physics
+
+`generated/<name>/carla_physics_1.0.yaml`, when a body has `carla.physics_1_0`: CARLA 1.0's
+`VehiclePhysicsControl` on its Chaos vehicle, SI units, wheels in CARLA's order, with `carla:
+"1.0"` and `blueprint`. Rust: `carla_physics_spec::chaos::ChaosPhysics` (`load`, which
+refuses a file for another CARLA, `differences`, `as_read_back`). Chaos applies from a client
+only part of what 0.9.16's PhysX vehicle did; the rest stays the blueprint asset's and is
+listed in the file's `not_applied`, neither applied nor compared.
+
+`carla.physics_1_0`:
+
+| key | what |
+|---|---|
+| `friction_multiplier_scale` | Chaos's `friction_force_multiplier` for a tire friction of 1.0 (measured on CARLA 1.0: a locked wheel's mu is 0.50 x the multiplier + 0.035) |
+| `chassis_area` | m^2: what CARLA 1.0 multiplies its drag coefficient by (the blueprint's chassis width x height; its `drag_area` is unused) |
+| `front_axle_x`, `rear_axle_x` | m, actor frame: the body's axles (scensim_carla_world's measured table) |
+
+From the spec as the body: `mass`; `center_of_mass` absolute in the actor frame (at
+`com_front_fraction` of the body's wheel base ahead of its rear axle, `com_height` up);
+`max_torque` and `torque_curve` normalised to it; `final_ratio` the body's `gear_ratio`;
+`differential` from `drive_axle`; `drag_coefficient` (Cd A over `chassis_area`); per wheel the
+body's radius, `friction_force_multiplier`, the steer limit, the brake torques; the same
+`command_lags` as `carla_physics.yaml`.
+
 ## The catalog
 
 `catalogs/vehicles.xosc` (catalog `vehicles`) has an entry per spec, named `name`
@@ -281,6 +334,12 @@ sections `geometry`, `inertia`, `wheels`, `tires`, `brakes`, `powertrain`, `resi
 `carla.physics` (null without it). The pedal maps measured on CARLA carry it
 (autoware_sim_vehicle's `pedal_maps.yaml`), so moving a sensor does not invalidate them, and
 `carla_physics.yaml` names it.
+
+With `bodies`, `spec_hash` is the file's (every body's outputs name the same), and
+`physics_hash` is a body's: computed over `effective(spec, body)`, so each body has its own,
+and the spec alone has none (`physics_hash` refuses it). The `carla-0.9.16` body of the Tesla
+Model 3 is, value for value, the spec of before bodies, so its physics_hash is the one its
+pedal maps were measured under.
 
 ## Version 2
 

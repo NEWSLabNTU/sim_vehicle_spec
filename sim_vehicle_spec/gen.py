@@ -2,7 +2,13 @@
 
     generated/<name>/carla_sensors.yaml   the sensors acb_bridge spawns on CARLA
     generated/<name>/carla_physics.yaml   CARLA's VehiclePhysicsControl for the car, and its lags
+    generated/<name>/carla_physics_1.0.yaml  the same for CARLA 1.0's Chaos vehicle
     catalogs/vehicles.xosc               the SSv2 vehicle catalog (one entry per spec)
+    catalogs/vehicles_<body>.xosc        the same for each spec's other bodies
+
+A spec with bodies (roadmap 083) is generated as each of them (spec.effective): its first body
+is the default, whose catalog is vehicles.xosc; a CARLA physics file comes from the body that
+calibrates it (carla.physics: carla_physics.yaml, carla.physics_1_0: carla_physics_1.0.yaml).
 
     python3 -m sim_vehicle_spec.gen [--root .]           # write
     python3 -m sim_vehicle_spec.gen [--root .] --check   # exit 1 when one is stale
@@ -158,6 +164,95 @@ def carla_physics_doc(spec):
     }
 
 
+# CARLA 1.0's Chaos (roadmap 083 step 5): what the server takes from a client and what it keeps
+# from the blueprint's wheel asset (CarlaWheeledVehicle.cpp, ApplyWheelPhysicsControl).
+CHAOS_NOT_APPLIED = (
+    "tires.lat_stiff_max_load, tires.lat_stiff_value, tires.friction_vs_slip: Chaos's "
+    "cornering_stiffness, lateral_slip_graph, slip and skid thresholds are the asset's",
+    "suspension (frequency, damping_ratio, travel): Chaos's spring, damper and travel are "
+    "the asset's",
+    "wheels.mass, geometry.wheel_width: the asset's wheel mass and width",
+    "resistance.rolling_coefficient: Chaos has a speed-proportional loss of its own "
+    "(measured 0.0099 x v m/s^2)",
+    "brakes.abs, powertrain.traction_control, powertrain regen: off, as on 0.9.16 (the "
+    "car's own ECU models them)",
+)
+
+
+def carla_physics_1_0_doc(spec):
+    """CARLA 1.0's VehiclePhysicsControl (Chaos) for the spec's car, SI units, CARLA's wheel
+    order; None when the spec gives CARLA 1.0 no calibration (carla.physics_1_0). The wheel
+    radius and the reduction are the body's (spec.effective)."""
+    cp = spec.section("carla").get("physics_1_0")
+    if not cp:
+        return None
+    g, i, t = (spec.doc[k] for k in ("geometry", "inertia", "tires"))
+    b, p, r = spec.doc["brakes"], spec.doc["powertrain"], spec.section("resistance")
+    if p["model"] != "ev":
+        raise ValueError(f"{spec.path}: carla_physics_1.0 needs an ev powertrain, not {p['model']!r}")
+    # 1.0 takes the centre of mass as an absolute position in the actor frame (measured: z 0
+    # puts it on the ground). The spec's load share is kept on the body's own wheel base.
+    base = cp["front_axle_x"] - cp["rear_axle_x"]
+    com = [round(cp["rear_axle_x"] + i["com_front_fraction"] * base, 4),
+           round(-i.get("com_lateral", 0.0), 4) or 0.0, i["com_height"]]
+    drag = r.get("drag_coefficient", 0.0) * r.get("frontal_area", 0.0) / cp["chassis_area"]
+    curve = motor_curve(p)
+    peak = max(tq for _, tq in curve)
+    friction = round(t["friction"] * cp["friction_multiplier_scale"], 4)
+    steer = round(math.degrees(g["max_steer_angle"]), 2)
+    hold = b.get("hold_brake_torque", 0.0)
+    drive = p.get("drive_axle", "rear")
+
+    def wheel(front):
+        return {"radius_m": g["wheel_radius"],
+                "friction_force_multiplier": friction,
+                "max_steer_angle_deg": steer if front else 0.0,
+                "max_brake_torque": b["max_brake_torque"],
+                "max_handbrake_torque": 0.0 if front else hold}
+
+    return {
+        "vehicle": {
+            "mass": i["mass"],
+            "center_of_mass": com,
+            "drag_coefficient": round(drag, 4),
+            "downforce_coefficient": 0.0,
+            "max_torque": peak,
+            "torque_curve": [[rpm, round(tq / peak, 4)] for rpm, tq in curve],
+            "max_rpm": p["motor_max_rpm"],
+            "idle_rpm": 0.0,
+            "brake_effect": 0.0,
+            "differential": drive,
+            "final_ratio": p["gear_ratio"],
+            "forward_gear_ratios": [1.0],
+            "reverse_gear_ratios": [1.0],
+            "change_up_rpm": p["motor_max_rpm"] * 2,
+            "change_down_rpm": 0.0,
+            "transmission_efficiency": 1.0,
+            "steering_curve": [[0.0, 1.0], [300.0, 1.0]],
+        },
+        "wheels": [wheel(True), wheel(True), wheel(False), wheel(False)],
+        "command_lags": {"brake_dead_time": b.get("dead_time", 0.0),
+                         "brake_time_constant": b.get("time_constant", 0.0),
+                         "motor_time_constant": p.get("motor_time_constant", 0.0)},
+        "not_applied": list(CHAOS_NOT_APPLIED),
+    }
+
+
+def carla_physics_1_0(spec, header):
+    doc = carla_physics_1_0_doc(spec)
+    body = {"spec_hash": specmod.spec_hash(spec), "physics_hash": specmod.physics_hash(spec),
+            "carla": "1.0", "blueprint": spec.section("body").get("catalogue_model", ""), **doc}
+    return emit.comment(header) + emit.comment(
+        "CARLA 1.0's physics for the car (VehiclePhysicsControl on Chaos): applied to the ego\n"
+        "by the CARLA world server after the spawn (with SSv2) or by acb_bridge on attach\n"
+        "(standalone), and read back by acb_bridge. SI units (the appliers convert: radius to\n"
+        "centimetres); wheels front left, front right, rear left, rear right; center_of_mass\n"
+        "is absolute in the actor frame (CARLA's axes, y right); torque_curve is the motor's,\n"
+        "normalised to max_torque (N m). ABS and traction control off, a flat steering_curve.\n"
+        "not_applied: what Chaos keeps from the blueprint's asset however it is asked.") \
+        + emit.yaml_text(body)
+
+
 def carla_physics(spec, header):
     doc = carla_physics_doc(spec)
     body = {"spec_hash": specmod.spec_hash(spec), "physics_hash": specmod.physics_hash(spec),
@@ -230,6 +325,45 @@ def catalog(specs, rels):
 
 # --- driver ---------------------------------------------------------------------------------
 
+def as_bodies(spec):
+    """[(body, the spec as it)] in the spec's order, the default first; [(None, spec)] for a
+    spec without bodies."""
+    names = specmod.bodies(spec)
+    return [(b, specmod.effective(spec, b)) for b in names] or [(None, spec)]
+
+
+def carla_files(spec, header):
+    """{file name: content} of the spec's CARLA files, each from the body that calibrates it."""
+    out = {}
+    for i, (body, e) in enumerate(as_bodies(spec)):
+        if i == 0:
+            out["carla_sensors.yaml"] = carla_sensors(e, header)
+        for name, doc_of, text_of in (("carla_physics.yaml", carla_physics_doc, carla_physics),
+                                      ("carla_physics_1.0.yaml", carla_physics_1_0_doc,
+                                       carla_physics_1_0)):
+            if doc_of(e) is None:
+                continue
+            if name in out:
+                raise ValueError(f"{spec.path}: two bodies calibrate {name}")
+            out[name] = text_of(e, header)
+    return out
+
+
+def catalog_name(body, default):
+    return "vehicles.xosc" if body == default else f"vehicles_{body}.xosc"
+
+
+def catalogs(specs, rels):
+    """{catalog file name: content}: each spec's default body in vehicles.xosc, its other
+    bodies in vehicles_<body>.xosc."""
+    groups = {}
+    for s, rel in zip(specs, rels):
+        builds = as_bodies(s)
+        for body, e in builds:
+            groups.setdefault(catalog_name(body, builds[0][0]), []).append((e, rel))
+    return {name: catalog([e for e, _ in g], [r for _, r in g]) for name, g in groups.items()}
+
+
 def outputs(root):
     """{path relative to root: content} for every spec under root/vehicles."""
     root = Path(root).resolve()
@@ -238,11 +372,10 @@ def outputs(root):
     rels = [p.relative_to(root).as_posix() for p in paths]
     out = {}
     for s, rel in zip(specs, rels):
-        out[f"generated/{s.name}/carla_sensors.yaml"] = carla_sensors(s, emit.header(s, TOOL, rel))
-        if carla_physics_doc(s) is not None:
-            out[f"generated/{s.name}/carla_physics.yaml"] = carla_physics(
-                s, emit.header(s, TOOL, rel))
-    out["catalogs/vehicles.xosc"] = catalog(specs, rels)
+        for name, text in carla_files(s, emit.header(s, TOOL, rel)).items():
+            out[f"generated/{s.name}/{name}"] = text
+    for name, text in catalogs(specs, rels).items():
+        out[f"catalogs/{name}"] = text
     return out
 
 
@@ -256,16 +389,19 @@ def single(spec_path, catalog_path=None, spec_hash_path=None, carla_dir=None):
     rel = lambda out: os.path.relpath(spec_path, Path(out).resolve().parent)  # noqa: E731
     out = {}
     if catalog_path:
-        out[str(Path(catalog_path).resolve())] = catalog([s], [rel(catalog_path)])
+        # The default body's at catalog_path, each other body's beside it (<stem>_<body>.xosc).
+        c = Path(catalog_path).resolve()
+        for name, text in catalogs([s], [rel(c)]).items():
+            out[str(c if name == "vehicles.xosc"
+                     else c.with_name(f"{c.stem}_{name[len('vehicles_'):]}"))] = text
     if spec_hash_path:
         out[str(Path(spec_hash_path).resolve())] = (
             emit.comment(emit.header(s, TOOL, rel(spec_hash_path)))
             + f"spec_hash: {specmod.spec_hash(s)}\n")
     if carla_dir:
         d = Path(carla_dir).resolve()
-        out[str(d / "carla_sensors.yaml")] = carla_sensors(s, emit.header(s, TOOL, rel(d / "x")))
-        if carla_physics_doc(s) is not None:
-            out[str(d / "carla_physics.yaml")] = carla_physics(s, emit.header(s, TOOL, rel(d / "x")))
+        for name, text in carla_files(s, emit.header(s, TOOL, rel(d / "x"))).items():
+            out[str(d / name)] = text
     return out
 
 

@@ -17,7 +17,7 @@
 # `assumed: true` are estimates, not measurements.
 spec_version: 2
 name: tesla_model3
-description: Tesla Model 3 RWD (physics, drivetrain) on the CARLA vehicle.tesla.model3 body (geometry)
+description: Tesla Model 3 RWD; each simulator runs it on its own body (bodies)
 
 body:
   # The body: CARLA's blueprint id, which is also the key of the Isaac vehicle catalogue
@@ -30,16 +30,17 @@ body:
 
 # What Autoware plans with (vehicle_info), and the PhysX wheel layout. base_link is the rear
 # axle centre on the ground, x forward, y left, z up. Metres, radians.
+# The real car's geometry. A simulator drives the body of its own asset: `bodies` below.
 geometry:
-  wheel_base: 3.005
-  wheel_tread: 1.667
-  wheel_radius: 0.370
+  wheel_base: 2.875
+  wheel_tread: 1.580
+  wheel_radius: 0.334
   wheel_width: 0.235
-  front_overhang: 0.807
-  rear_overhang: 0.980
-  left_overhang: 0.248
-  right_overhang: 0.248
-  vehicle_height: 1.488
+  front_overhang: 0.841
+  rear_overhang: 0.977
+  left_overhang: 0.254
+  right_overhang: 0.254
+  vehicle_height: 1.443
   # Bicycle-model tire angle limit: a planning limit (acb docs/issues/006), about a real car's
   max_steer_angle: 0.70
 
@@ -93,7 +94,7 @@ powertrain:
   max_drive_torque: 1500.0    # N m per wheel (ideal only): ~8 m/s^2
   # ev: one motor on the rear axle through a single-speed reduction and an open differential
   drive_axle: rear
-  gear_ratio: 10.0            # effective: Tesla's 9.03:1 for the CARLA body's larger wheel (provenance)
+  gear_ratio: 9.03            # Tesla's single-speed reduction (a body scales it to its wheel: bodies)
   motor_peak_torque: 340.0    # N m at the motor, to base speed (194 kW / 340 N m = 5450 rpm)
   motor_peak_power: 194000.0  # W, constant above base speed
   motor_max_rpm: 15200.0      # torque tapers to 0 over the last 5 %: ~201 km/h
@@ -139,18 +140,65 @@ isaac:
     longitudinal_sticky_tire_damping: 200.0
     lateral_sticky_tire_damping: 200.0
 
-carla:
-  # What CARLA's PhysX vehicle needs beyond the sections above (roadmap 051 K3): the body's own
-  # facts and CARLA's scales. carla_physics.yaml derives everything else from the spec.
-  physics:
-    tire_friction_scale: 1.2     # CARLA's tire_friction for a tire friction of 1.0
-    drag_area: 3.219             # m^2: what CARLA multiplies its drag coefficient by
-    body_com: [0.029, 0.0, 0.744]  # m, actor frame: the centre of mass UE computes for the body
-    rear_axle_x: -1.386          # m, actor frame (measured, scensim_carla_world's blueprint table)
-    max_steer_angle_deg: 70.0    # the front wheels' limit, which acb_bridge's steering map assumes
-    # CARLA's engine is a combustion engine's: an EV motor's rotor is light and drags little.
-    engine_moi: 0.05             # kg m^2
-    engine_damping: 0.01         # every damping rate of CARLA's engine
+# Each simulator's body for this car (roadmap 083): the geometry its asset has, the reduction
+# scaled to its wheel (the force at the road and the motor speed per road speed the real
+# car's), its catalogue model and its simulator's calibration. Every generator builds a
+# simulator's car from the spec as that body (sim_vehicle_spec.spec.effective).
+bodies:
+  # CARLA 0.9.16's vehicle.tesla.model3; Isaac's ego is the same body (its USD is that asset's).
+  carla-0.9.16:
+    catalogue_model: vehicle.tesla.model3
+    geometry:
+      wheel_base: 3.005
+      wheel_tread: 1.667
+      wheel_radius: 0.370
+      wheel_width: 0.235
+      front_overhang: 0.807
+      rear_overhang: 0.980
+      left_overhang: 0.248
+      right_overhang: 0.248
+      vehicle_height: 1.488
+      max_steer_angle: 0.70
+    powertrain:
+      gear_ratio: 10.0          # 9.03 x 0.370 / 0.334, rounded as it always was
+    carla:
+      # What CARLA's PhysX vehicle needs beyond the sections above (roadmap 051 K3): the
+      # body's own facts and CARLA's scales. carla_physics.yaml derives the rest.
+      physics:
+        tire_friction_scale: 1.2     # CARLA's tire_friction for a tire friction of 1.0
+        drag_area: 3.219             # m^2: what CARLA multiplies its drag coefficient by
+        body_com: [0.029, 0.0, 0.744]  # m, actor frame: the centre of mass UE computes for the body
+        rear_axle_x: -1.386          # m, actor frame (measured, scensim_carla_world's blueprint table)
+        max_steer_angle_deg: 70.0    # the front wheels' limit, which acb_bridge's steering map assumes
+        # CARLA's engine is a combustion engine's: an EV motor's rotor is light and drags little.
+        engine_moi: 0.05             # kg m^2
+        engine_damping: 0.01         # every damping rate of CARLA's engine
+  # CARLA 1.0's vehicle.tesla.model3 (Chaos): the real car's dimensions.
+  carla-1.0:
+    catalogue_model: vehicle.tesla.model3
+    geometry:                   # scensim_carla_world blueprint_boxes_1.0.yaml (measured)
+      wheel_base: 2.876
+      wheel_tread: 1.580
+      wheel_radius: 0.336
+      wheel_width: 0.235
+      front_overhang: 0.841
+      rear_overhang: 0.977
+      left_overhang: 0.254
+      right_overhang: 0.254
+      vehicle_height: 1.443
+      max_steer_angle: 0.70
+    powertrain:
+      gear_ratio: 9.084         # 9.03 x 0.336 / 0.334
+    carla:
+      # CARLA 1.0's Chaos vehicle (roadmap 083 step 5), measured 2026-11-18 on the packaged 1.0
+      physics_1_0:
+        friction_multiplier_scale: 1.94  # Chaos's friction_force_multiplier for a tire friction of 1.0 (locked-wheel braking: mu = 0.50 x multiplier + 0.035)
+        chassis_area: 2.52       # m^2: what 1.0 multiplies its drag coefficient by (the blueprint's chassis 1.8 x 1.4 m; its drag_area is unused)
+        front_axle_x: 1.438      # m, actor frame (scensim_carla_world blueprint_boxes_1.0.yaml)
+        rear_axle_x: -1.438      # m, actor frame (the same table)
+
+simulators:
+  isaac: carla-0.9.16           # Isaac's ego body is CARLA 0.9.16's model3 exported to USD
 
 # The sensor kit: base_link -> sensor_kit_base_link, then each sensor's mount in the kit.
 # Mounts are what csb's Isaac ego uses today (acb's acb_sensor_kit calibration).
@@ -274,8 +322,13 @@ sensors:
 # Where each number comes from. `assumed: true` marks an estimate to replace with a
 # measurement when one exists.
 provenance:
-  body.ground_clearance: {basis: "Tesla Model 3 specifications (Rear-Wheel Drive, 2024-2026): ground clearance 138 mm (5.4 in), unladen. The real car's figure on the CARLA body's larger wheel: the underbody is where Tesla puts it, not raised with the wheel"}
-  geometry: {basis: "CARLA 0.9.16 vehicle.tesla.model3, measured: wheel base, track and radius from physics_control (acb's extract_vehicle_params.py, scensim's blueprint table); the overhangs from the actor's box against the axles (roadmap 050: the rear axle is 1.386 m behind the actor origin, the box centre 0.029 ahead, so 0.807 front and 0.980 rear (the body 4.792 m with the 3.005 m wheel base, itself 3.0046 rounded), not the 0.923 / 0.864 a centred wheel base gives). A real Model 3 is 2.875 / 1.58 / 0.334 m; kept so Autoware, the body and the physics are one car"}
+  body.ground_clearance: {basis: "Tesla Model 3 specifications (Rear-Wheel Drive, 2024-2026): ground clearance 138 mm (5.4 in), unladen. The real car's figure on every body: the underbody is where Tesla puts it, not raised with a larger wheel"}
+  geometry: {basis: "the real car: Tesla Model 3 (2024) wheel base 2875 mm, track 1580 mm, length 4694 mm, width 1849 mm without mirrors (2088 with), height 1443 mm; the 235/45R18 tire's radius 0.334 m; the overhangs from the length about the axles (0.841 front, 0.977 rear) and the width with mirrors about the track (0.254 a side). CARLA 1.0's vehicle.tesla.model3 measures the same to the millimetre (bodies.carla-1.0)"}
+  bodies.carla-0.9.16.geometry: {basis: "CARLA 0.9.16 vehicle.tesla.model3, measured: wheel base, track and radius from physics_control (acb's extract_vehicle_params.py, scensim's blueprint table); the overhangs from the actor's box against the axles (roadmap 050: the rear axle is 1.386 m behind the actor origin, the box centre 0.029 ahead, so 0.807 front and 0.980 rear (the body 4.792 m with the 3.005 m wheel base, itself 3.0046 rounded), not the 0.923 / 0.864 a centred wheel base gives)"}
+  bodies.carla-0.9.16.powertrain.gear_ratio: {basis: "Tesla's 9.03:1 scaled by 0.370 / 0.334 m (the body's wheel vs the Model 3's 235/45R18) so the force at the road and the motor speed per road speed are the real car's; 10.0 as the pedal maps were measured"}
+  bodies.carla-1.0.geometry: {basis: "CARLA 1.0 vehicle.tesla.model3, measured 2026-11-18 (scensim_carla_world blueprint_boxes_1.0.yaml): box 4.694 x 2.088 x 1.443 m centred 0.068 m behind the actor origin, axles at +-1.438 m, track 1.58 m, wheel radius 0.336 m"}
+  bodies.carla-1.0.powertrain.gear_ratio: {basis: "Tesla's 9.03:1 scaled by 0.336 / 0.334 m, as for carla-0.9.16"}
+  bodies.carla-1.0.carla.physics_1_0: {basis: "measured 2026-11-18 on the packaged CARLA 1.0 (roadmap 083 step 5, chaos_measure.py): locked-wheel mu 0.50 x friction_force_multiplier + 0.035, so 1.94 for a tire friction of 1.0; drag Cd x the blueprint's chassis 1.8 x 1.4 m, its drag_area unused"}
   inertia.mass: {basis: "Model 3 RWD (2024) curb mass 1760 kg (evspecifications.com/en/model/5f1c3d0)"}
   inertia.com_front_fraction: {assumed: true, basis: "road-test weight splits around 47-48 % front; the RWD's rear motor puts it at the low end"}
   inertia.com_height: {assumed: true, basis: "a floor battery pack puts the CoM low"}
@@ -289,12 +342,12 @@ provenance:
   brakes.abs: {assumed: true, basis: "tuned in Isaac (aib.steptest brake_100, 2026-10-19): PhysX slip at the tire peak is ~0.1-0.13 under braking load; release past 0.25 / reapply below 0.15 at 8 / 4 per s stopped shortest of five settings on a realistic friction curve, and never locked"}
   powertrain.max_drive_torque: {basis: "chosen: ~8 m/s^2, beyond what Autoware asks (ideal)"}
   powertrain.drive_axle: {basis: "Model 3 RWD: one rear permanent-magnet motor (3D7), no front motor (Tesla Model 3 owner's manual, Motor Type(s))"}
-  powertrain.gear_ratio: {basis: "Tesla Model 3 owner's manual: single-speed fixed gear 9.03:1; scaled by 0.370 / 0.334 m (the CARLA body's wheel vs the Model 3's 235/45R18) so the force at the road and the motor speed per road speed are the real car's"}
+  powertrain.gear_ratio: {basis: "Tesla Model 3 owner's manual: single-speed fixed gear 9.03:1; each body scales it to its own wheel (bodies.<name>.powertrain.gear_ratio)"}
   powertrain.motor_peak_torque: {basis: "Tesla Model 3 owner's manual, motor 3D7: 194 kW, 340 N m; evspecifications lists 194 kW at 5400 rpm (440 N m there is not Tesla's figure)"}
   powertrain.motor_peak_power: {basis: "Tesla Model 3 owner's manual, motor 3D7: 194 kW; peak, i.e. battery and inverter permitting"}
   powertrain.motor_max_rpm: {assumed: true, basis: "set so that the taper reaches Tesla's 201 km/h top speed (Model 3 RWD 2024)"}
   powertrain.motor_time_constant: {assumed: true, basis: "inverter torque response is a few ms; the driveline's anti-jerk shaping makes the wheel torque's tens of ms"}
-  powertrain.regen_max_torque: {assumed: true, basis: "Tesla quoted 0.2 g maximum regen deceleration for Model 3 (0.3 g in Track Mode; Electrek 2018); 0.2 g x 1760 kg x 0.370 m / 10.0"}
+  powertrain.regen_max_torque: {assumed: true, basis: "Tesla quoted 0.2 g maximum regen deceleration for Model 3 (0.3 g in Track Mode; Electrek 2018); 0.2 g x 1760 kg x 0.334 m / 9.03 (the same on every body: radius over reduction is the real car's)"}
   powertrain.regen_max_power: {assumed: true, basis: "owner reports of ~60-70 kW peak regen for Model 3 (no Tesla figure); 60 kW"}
   powertrain.regen_fade_speeds: {assumed: true, basis: "regen fades out at walking pace, where the friction brakes (hold) take over"}
   powertrain.traction_control: {assumed: true, basis: "slip limit just past the PhysX tire's peak under drive; motor torque cut fast (the inverter acts in ms)"}
@@ -303,11 +356,11 @@ provenance:
   resistance.frontal_area: {assumed: true, basis: "~2.2 m^2, InsideEVs / Engineering Explained estimate (from the Model S's)"}
   suspension: {assumed: true, basis: "a sedan's ride"}
   isaac.physx: {basis: "csb roadmap 043: the braking instability fix"}
-  carla.physics.tire_friction_scale: {basis: "measured (roadmap 051 K3, scripts/carla_step_response.py): 1.2 stops from 100 km/h at full brake in 42.8 m, Isaac's ev on this spec in 42.9 (ABS) to 44.1 (locked); CARLA's own 3.5 stops in 22 m once the brakes can lock the wheels, ~1.7 g"}
-  carla.physics.drag_area: {assumed: true, basis: "UE4's PhysX vehicle drags with ChassisWidth x ChassisHeight; the body's box, 2.163 x 1.488 m"}
-  carla.physics.body_com: {assumed: true, basis: "the centre of the body's box (CARLA does not expose the centre UE computes from the collision)"}
-  carla.physics.rear_axle_x: {basis: "measured: scensim_carla_world blueprint_boxes_0.9.16.yaml axles"}
-  carla.physics.max_steer_angle_deg: {basis: "CARLA 0.9.16 vehicle.tesla.model3 front wheels; acb_bridge's steering map is built on it"}
-  carla.physics.engine_moi: {basis: "measured (roadmap 051 K3): with 0.05 and engine_damping 0.01, 0-100 km/h in 6.3 s against Isaac's 6.45 (CARLA's own 1.0 and 0.15-2.0: 10.9 s, and a 6.3 m/s^2 coast at 25 m/s through the 10:1 reduction)"}
-  carla.physics.engine_damping: {basis: "measured (roadmap 051 K3): coasting at 25 m/s 0.20 m/s^2 against Isaac's 0.276, the difference CARLA's missing rolling resistance (~0.09)"}
+  bodies.carla-0.9.16.carla.physics.tire_friction_scale: {basis: "measured (roadmap 051 K3, scripts/carla_step_response.py): 1.2 stops from 100 km/h at full brake in 42.8 m, Isaac's ev on this spec in 42.9 (ABS) to 44.1 (locked); CARLA's own 3.5 stops in 22 m once the brakes can lock the wheels, ~1.7 g"}
+  bodies.carla-0.9.16.carla.physics.drag_area: {assumed: true, basis: "UE4's PhysX vehicle drags with ChassisWidth x ChassisHeight; the body's box, 2.163 x 1.488 m"}
+  bodies.carla-0.9.16.carla.physics.body_com: {assumed: true, basis: "the centre of the body's box (CARLA does not expose the centre UE computes from the collision)"}
+  bodies.carla-0.9.16.carla.physics.rear_axle_x: {basis: "measured: scensim_carla_world blueprint_boxes_0.9.16.yaml axles"}
+  bodies.carla-0.9.16.carla.physics.max_steer_angle_deg: {basis: "CARLA 0.9.16 vehicle.tesla.model3 front wheels; acb_bridge's steering map is built on it"}
+  bodies.carla-0.9.16.carla.physics.engine_moi: {basis: "measured (roadmap 051 K3): with 0.05 and engine_damping 0.01, 0-100 km/h in 6.3 s against Isaac's 6.45 (CARLA's own 1.0 and 0.15-2.0: 10.9 s, and a 6.3 m/s^2 coast at 25 m/s through the 10:1 reduction)"}
+  bodies.carla-0.9.16.carla.physics.engine_damping: {basis: "measured (roadmap 051 K3): coasting at 25 m/s 0.20 m/s^2 against Isaac's 0.276, the difference CARLA's missing rolling resistance (~0.09)"}
   sensors: {basis: "acb acb_sensor_kit calibration, as csb's Isaac ego mounts it; the carla blocks are acb_bridge's vehicle_config.yaml"}

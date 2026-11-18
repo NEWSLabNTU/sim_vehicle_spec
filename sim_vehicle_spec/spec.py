@@ -59,6 +59,12 @@ PHYSX_KEYS = ("substeps", "substep_threshold_speed", "min_active_slip_denominato
 # body's own facts and CARLA's scales); the rest of carla_physics.yaml derives from the spec
 CARLA_PHYSICS_KEYS = ("tire_friction_scale", "drag_area", "body_com", "rear_axle_x",
                       "max_steer_angle_deg", "engine_moi", "engine_damping")
+# carla.physics_1_0: what CARLA 1.0's Chaos vehicle needs that the physics sections do not say
+# (roadmap 083 step 5): its scales and the body's own facts, measured on the packaged 1.0. The
+# rest of carla_physics_1.0.yaml derives from the spec. Not in physics_hash: a calibration of
+# how 1.0 reproduces the spec's car does not change the car the pedal maps were measured on.
+CARLA_PHYSICS_1_0_KEYS = ("friction_multiplier_scale", "chassis_area", "front_axle_x",
+                          "rear_axle_x")
 # A sensor's carla: the key acb_bridge spawns it under (a TF frame of the URDF), the CARLA
 # blueprint, and the attributes not derived from the shared fields.
 CARLA_SENSOR_KEYS = ("key", "blueprint", "attributes", "intensity")
@@ -75,7 +81,17 @@ CARLA_SEMANTIC_TAGS = ("NONE", "Roads", "Sidewalks", "Buildings", "Walls", "Fenc
                        "Pedestrians", "Rider", "Car", "Truck", "Bus", "Train", "Motorcycle",
                        "Bicycle", "Static", "Dynamic", "Other", "Water", "RoadLines", "Ground",
                        "Bridge", "RailTrack", "GuardRail")
-TOP = {"spec_version", "name", "description", "sensors", "provenance", *SECTIONS}
+TOP = {"spec_version", "name", "description", "sensors", "provenance", "bodies", "simulators",
+       *SECTIONS}
+# bodies.<name>: a simulator's body for the car (roadmap 083). The spec's own geometry is the
+# real car's; a simulator drives the body its asset has, and a body says how it differs: its
+# measured geometry (all of it), the powertrain values scaled to its wheel, its catalogue model
+# and its simulator's calibration. `effective(spec, body)` is the spec as that body.
+BODY_KEYS = ("catalogue_model", "geometry", "powertrain", "carla")
+# The powertrain values that depend on the body's wheel (the force at the road kept the car's)
+BODY_POWERTRAIN_KEYS = ("gear_ratio", "regen_max_torque")
+# simulators.<simulator>: the body a simulator runs when its version does not name one
+SIMULATORS = ("isaac",)
 SENSOR_COMMON = ("type", "calibration_key", "link", "frame", "topic", "mount", "isaac", "carla")
 SENSOR_EXTRA = {
     "lidar": ("channels", "rate_hz", "range", "vertical_fov"),
@@ -95,7 +111,10 @@ SUBSECTIONS = {
     ("powertrain", "differential"): ("type", "preload", "power_lock", "coast_lock"),
     ("isaac", "physx"): PHYSX_KEYS,
     ("carla", "physics"): CARLA_PHYSICS_KEYS,
+    ("carla", "physics_1_0"): CARLA_PHYSICS_1_0_KEYS,
 }
+# A body's carla: the calibration of its simulator's version
+BODY_CARLA_KEYS = ("physics", "physics_1_0")
 # What an `ev` powertrain cannot do without
 EV_REQUIRED = ("gear_ratio", "motor_peak_torque", "motor_peak_power", "motor_max_rpm")
 # Keys that moved, with where to
@@ -115,6 +134,10 @@ class SpecError(ValueError):
 class Spec:
     path: Path
     doc: dict
+    # The body this view of the spec is (`effective`), None for the spec as written
+    body: str = None
+    # The spec as written, when this is a body's view: its fingerprint is the file's
+    source: dict = None
 
     @property
     def name(self):
@@ -131,6 +154,43 @@ def load(path):
     doc = yaml.safe_load(path.read_text()) or {}
     validate(doc, str(path))
     return Spec(path=path, doc=doc)
+
+
+def bodies(spec):
+    """The names of the spec's bodies (empty: the spec is its own body)."""
+    return list((spec.source or spec.doc).get("bodies") or {})
+
+
+def simulator_body(spec, simulator):
+    """The body `simulator` runs (`simulators`), None when the spec names none."""
+    return ((spec.source or spec.doc).get("simulators") or {}).get(simulator)
+
+
+def effective(spec, body):
+    """The spec as `body` (roadmap 083): its geometry, its powertrain scaling, its catalogue
+    model and its simulator's calibration in place of the spec's. Every consumer that
+    builds a simulator's car takes this. Its spec_hash is the file's; its physics_hash is the
+    body's. A spec without bodies is its own body: `body` must then be None."""
+    import copy
+
+    source = spec.source or spec.doc
+    all_bodies = source.get("bodies") or {}
+    if body is None:
+        if all_bodies:
+            raise SpecError(f"{spec.path}: name a body, one of {', '.join(all_bodies)}")
+        return spec
+    if body not in all_bodies:
+        raise SpecError(f"{spec.path}: no body {body!r} (bodies: {', '.join(all_bodies) or 'none'})")
+    b = all_bodies[body]
+    doc = copy.deepcopy({k: v for k, v in source.items() if k not in ("bodies", "simulators")})
+    doc["geometry"] = copy.deepcopy(b["geometry"])
+    doc["powertrain"].update(copy.deepcopy(b.get("powertrain") or {}))
+    doc.setdefault("body", {})["catalogue_model"] = b["catalogue_model"]
+    carla = dict(doc.get("carla") or {})
+    carla.update(copy.deepcopy(b.get("carla") or {}))
+    if carla:
+        doc["carla"] = carla
+    return Spec(path=spec.path, doc=doc, body=body, source=source)
 
 
 def validate(doc, where="spec"):
@@ -254,12 +314,60 @@ def validate(doc, where="spec"):
             if "blueprint" not in carla:
                 fail(f"{where_s}.carla: missing blueprint")
             _check_intensity(t, carla, f"{where_s}.carla", fail)
+    _check_bodies(doc, fail)
     for key, entry in (doc.get("provenance") or {}).items():
         head = key.split(".")[0]
         if head not in TOP:
             fail(f"provenance.{key}: no such section")
         if not isinstance(entry, dict) or "basis" not in entry:
             fail(f"provenance.{key}: needs a basis")
+
+
+def _check_bodies(doc, fail):
+    bodies = doc.get("bodies")
+    if bodies is None:
+        if doc.get("simulators"):
+            fail("simulators: no bodies to name")
+        return
+    if not isinstance(bodies, dict) or not bodies:
+        fail("bodies is not a mapping of body names")
+    geo_keys = SECTIONS["geometry"][0]
+    for name, b in bodies.items():
+        where = f"bodies.{name}"
+        if not isinstance(b, dict):
+            fail(f"{where} is not a mapping")
+        extra = set(b) - set(BODY_KEYS)
+        if extra:
+            fail(f"{where}: unknown key(s) {sorted(extra)}")
+        for k in ("catalogue_model", "geometry"):
+            if k not in b:
+                fail(f"{where}: missing {k}")
+        g = b["geometry"]
+        missing = [k for k in geo_keys if k not in g]
+        if missing:
+            fail(f"{where}.geometry: missing {missing} (a body states all of its geometry)")
+        extra = set(g) - set(geo_keys)
+        if extra:
+            fail(f"{where}.geometry: unknown key(s) {sorted(extra)}")
+        extra = set(b.get("powertrain") or {}) - set(BODY_POWERTRAIN_KEYS)
+        if extra:
+            fail(f"{where}.powertrain: unknown key(s) {sorted(extra)} "
+                 f"(a body scales only {', '.join(BODY_POWERTRAIN_KEYS)})")
+        carla = b.get("carla") or {}
+        extra = set(carla) - set(BODY_CARLA_KEYS)
+        if extra:
+            fail(f"{where}.carla: unknown key(s) {sorted(extra)}")
+        for k, v in carla.items():
+            extra = set(v) - set(SUBSECTIONS[("carla", k)])
+            if extra:
+                fail(f"{where}.carla.{k}: unknown key(s) {sorted(extra)}")
+    for sim, name in (doc.get("simulators") or {}).items():
+        if sim not in SIMULATORS:
+            fail(f"simulators.{sim}: one of {', '.join(SIMULATORS)}")
+        if name not in bodies:
+            fail(f"simulators.{sim}: no body {name!r}")
+    if (doc.get("carla") or {}).get("physics") is not None:
+        fail("carla.physics with bodies: it is a body's (bodies.<name>.carla.physics)")
 
 
 def _check_intensity(sensor_type, carla, where, fail):
@@ -357,13 +465,17 @@ def _canonical(value):
 def spec_hash(spec):
     """The spec's fingerprint (SHA-256 of the canonical spec, words left out): every generated
     file carries it, and every part of a run reports the one it loaded (roadmap 051)."""
-    doc = {k: v for k, v in spec.doc.items() if k not in UNHASHED}
+    doc = {k: v for k, v in (spec.source or spec.doc).items() if k not in UNHASHED}
     return hashlib.sha256(_canonical(doc).encode()).hexdigest()
 
 
 def physics_hash(spec):
     """The fingerprint of what drives the car (PHYSICS_SECTIONS and carla.physics): the pedal
-    maps measured on CARLA carry it, so moving a sensor does not invalidate them."""
+    maps measured on CARLA carry it, so moving a sensor does not invalidate them. A body's
+    (spec.effective): a spec with bodies has no physics_hash of its own."""
+    if spec.source is None and spec.doc.get("bodies"):
+        raise SpecError(f"{spec.path}: physics_hash is a body's: spec.effective(spec, body), "
+                        f"body one of {', '.join(spec.doc['bodies'])}")
     doc = {k: spec.doc.get(k) for k in PHYSICS_SECTIONS}
     doc["carla.physics"] = spec.section("carla").get("physics")
     return hashlib.sha256(_canonical(doc).encode()).hexdigest()

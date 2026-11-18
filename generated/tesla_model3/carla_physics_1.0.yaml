@@ -1,0 +1,59 @@
+# Generated from vehicles/tesla_model3.yaml (spec_hash dffb1d3df1f4ae564235a87c84c1a5a4b402f4d41d265186976561b96d31273c) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
+# CARLA 1.0's physics for the car (VehiclePhysicsControl on Chaos): applied to the ego
+# by the CARLA world server after the spawn (with SSv2) or by acb_bridge on attach
+# (standalone), and read back by acb_bridge. SI units (the appliers convert: radius to
+# centimetres); wheels front left, front right, rear left, rear right; center_of_mass
+# is absolute in the actor frame (CARLA's axes, y right); torque_curve is the motor's,
+# normalised to max_torque (N m). ABS and traction control off, a flat steering_curve.
+# not_applied: what Chaos keeps from the blueprint's asset however it is asked.
+spec_hash: dffb1d3df1f4ae564235a87c84c1a5a4b402f4d41d265186976561b96d31273c
+physics_hash: 6384e6a29f6e27c53eb66008494bfca2e8d06d46e701810a5f8dd5ee7c29cd3c
+carla: '1.0'
+blueprint: vehicle.tesla.model3
+vehicle:
+  mass: 1760.0
+  center_of_mass: [-0.0863, 0.0, 0.46]
+  drag_coefficient: 0.2008
+  downforce_coefficient: 0.0
+  max_torque: 340.0
+  torque_curve:
+  - [0.0, 1.0]
+  - [5448.7, 1.0]
+  - [6572.6, 0.829]
+  - [7696.5, 0.7079]
+  - [8820.4, 0.6177]
+  - [9944.4, 0.5479]
+  - [11068.3, 0.4923]
+  - [12192.2, 0.4469]
+  - [13316.1, 0.4092]
+  - [14440.0, 0.3773]
+  - [15200.0, 0.0]
+  max_rpm: 15200.0
+  idle_rpm: 0.0
+  brake_effect: 0.0
+  differential: rear
+  final_ratio: 9.084
+  forward_gear_ratios: [1.0]
+  reverse_gear_ratios: [1.0]
+  change_up_rpm: 30400.0
+  change_down_rpm: 0.0
+  transmission_efficiency: 1.0
+  steering_curve:
+  - [0.0, 1.0]
+  - [300.0, 1.0]
+wheels:
+- {radius_m: 0.336, friction_force_multiplier: 1.94, max_steer_angle_deg: 40.11, max_brake_torque: 3000.0,
+  max_handbrake_torque: 0.0}
+- {radius_m: 0.336, friction_force_multiplier: 1.94, max_steer_angle_deg: 40.11, max_brake_torque: 3000.0,
+  max_handbrake_torque: 0.0}
+- {radius_m: 0.336, friction_force_multiplier: 1.94, max_steer_angle_deg: 0.0, max_brake_torque: 3000.0,
+  max_handbrake_torque: 1500.0}
+- {radius_m: 0.336, friction_force_multiplier: 1.94, max_steer_angle_deg: 0.0, max_brake_torque: 3000.0,
+  max_handbrake_torque: 1500.0}
+command_lags: {brake_dead_time: 0.08, brake_time_constant: 0.06, motor_time_constant: 0.04}
+not_applied: ['tires.lat_stiff_max_load, tires.lat_stiff_value, tires.friction_vs_slip: Chaos''s cornering_stiffness,
+    lateral_slip_graph, slip and skid thresholds are the asset''s', 'suspension (frequency, damping_ratio,
+    travel): Chaos''s spring, damper and travel are the asset''s', 'wheels.mass, geometry.wheel_width:
+    the asset''s wheel mass and width', 'resistance.rolling_coefficient: Chaos has a speed-proportional
+    loss of its own (measured 0.0099 x v m/s^2)', 'brakes.abs, powertrain.traction_control, powertrain
+    regen: off, as on 0.9.16 (the car''s own ECU models them)']

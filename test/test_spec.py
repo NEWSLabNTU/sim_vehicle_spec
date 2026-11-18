@@ -29,10 +29,18 @@ class ShippedSpecTest(unittest.TestCase):
             self.assertIn(key, a)
         self.assertNotIn("inertia.mass", a)
 
+    def test_the_spec_is_the_real_car(self):
+        self.assertEqual(specmod.axles(self.spec),
+                         {"front_x": 2.875, "rear_x": 0.0, "track": 1.58, "wheel_radius": 0.334})
+        (_, _, _), (lx, ly, lz) = specmod.box(self.spec)
+        self.assertAlmostEqual(lx, 4.693)
+        self.assertAlmostEqual(ly, 2.088)
+        self.assertEqual(self.spec.doc["powertrain"]["gear_ratio"], 9.03)
+
     def test_the_box_is_the_measured_body(self):
         # CARLA's vehicle.tesla.model3 (roadmap 050): 4.792 x 2.163 x 1.488, centre 1.415 ahead
         # of the rear axle in the blueprint table (1.416 here, the wheel base being 3.005)
-        (cx, cy, cz), (lx, ly, lz) = specmod.box(self.spec)
+        (cx, cy, cz), (lx, ly, lz) = specmod.box(specmod.effective(self.spec, "carla-0.9.16"))
         self.assertAlmostEqual(lx, 4.792)
         self.assertAlmostEqual(ly, 2.163)
         self.assertAlmostEqual(lz, 1.488)
@@ -40,8 +48,19 @@ class ShippedSpecTest(unittest.TestCase):
         self.assertEqual((cy, cz), (0.0, 0.744))
 
     def test_the_axles(self):
-        self.assertEqual(specmod.axles(self.spec),
+        self.assertEqual(specmod.axles(specmod.effective(self.spec, "carla-0.9.16")),
                          {"front_x": 3.005, "rear_x": 0.0, "track": 1.667, "wheel_radius": 0.370})
+        self.assertEqual(specmod.axles(specmod.effective(self.spec, "carla-1.0")),
+                         {"front_x": 2.876, "rear_x": 0.0, "track": 1.58, "wheel_radius": 0.336})
+
+    def test_the_1_0_box_is_its_measured_body(self):
+        # CARLA 1.0's vehicle.tesla.model3 (blueprint_boxes_1.0.yaml): 4.694 x 2.088 x 1.443,
+        # centred 0.068 behind the actor origin, the rear axle 1.438 behind it
+        (cx, _, cz), (lx, ly, lz) = specmod.box(specmod.effective(self.spec, "carla-1.0"))
+        self.assertAlmostEqual(lx, 4.694)
+        self.assertAlmostEqual(ly, 2.088)
+        self.assertAlmostEqual(lz, 1.443)
+        self.assertAlmostEqual(cx, 1.438 - 0.068, 2)
 
     def test_sensors_are_in_base_link(self):
         s = specmod.sensors(self.spec)
@@ -203,9 +222,77 @@ class ValidationTest(unittest.TestCase):
         self.refused(d, "sensors.imu.carla: missing blueprint")
 
 
+class BodyTest(unittest.TestCase):
+    """Roadmap 083: the spec is the real car, each simulator's body an effective spec."""
+
+    def setUp(self):
+        self.spec = specmod.load(SPEC)
+
+    def test_0_9_16_is_the_car_the_pedal_maps_were_measured_on(self):
+        # The physics_hash autoware_sim_vehicle's pedal maps record: the 0.9.16 body is the
+        # spec of before the bodies, value for value.
+        e = specmod.effective(self.spec, "carla-0.9.16")
+        self.assertEqual(specmod.physics_hash(e),
+                         "33635ad5c8611570ffbb9a00b495df5bdc1be06f8f6227280a4c34033acdc267")
+        self.assertEqual(e.doc["powertrain"]["gear_ratio"], 10.0)
+        self.assertEqual(e.section("body")["catalogue_model"], "vehicle.tesla.model3")
+        self.assertNotIn("bodies", e.doc)
+
+    def test_a_body_keeps_the_files_spec_hash(self):
+        h = specmod.spec_hash(self.spec)
+        for b in specmod.bodies(self.spec):
+            self.assertEqual(specmod.spec_hash(specmod.effective(self.spec, b)), h)
+
+    def test_each_body_has_its_own_physics_hash(self):
+        a, b = (specmod.physics_hash(specmod.effective(self.spec, n))
+                for n in ("carla-0.9.16", "carla-1.0"))
+        self.assertNotEqual(a, b)
+
+    def test_a_spec_with_bodies_has_no_physics_hash_of_its_own(self):
+        with self.assertRaises(specmod.SpecError) as e:
+            specmod.physics_hash(self.spec)
+        self.assertIn("carla-0.9.16", str(e.exception))
+
+    def test_a_body_must_be_named_and_known(self):
+        with self.assertRaises(specmod.SpecError):
+            specmod.effective(self.spec, None)
+        with self.assertRaises(specmod.SpecError) as e:
+            specmod.effective(self.spec, "carla-0.9.15")
+        self.assertIn("carla-1.0", str(e.exception))
+        mustang = specmod.load(Path(ROOT, "vehicles", "drift_mustang.yaml"))
+        self.assertIs(specmod.effective(mustang, None), mustang)
+
+    def test_isaac_runs_the_0_9_16_body(self):
+        # Isaac's ego USD is CARLA 0.9.16's model3 exported
+        self.assertEqual(specmod.simulator_body(self.spec, "isaac"), "carla-0.9.16")
+
+    def test_the_reduction_keeps_the_real_cars_force_at_the_road(self):
+        real = self.spec.doc["powertrain"]["gear_ratio"] / self.spec.doc["geometry"]["wheel_radius"]
+        for b in specmod.bodies(self.spec):
+            e = specmod.effective(self.spec, b)
+            self.assertAlmostEqual(
+                e.doc["powertrain"]["gear_ratio"] / e.doc["geometry"]["wheel_radius"], real, delta=0.1)
+
+    def test_a_body_is_validated(self):
+        d = doc()
+        del d["bodies"]["carla-1.0"]["geometry"]["wheel_radius"]
+        with self.assertRaises(specmod.SpecError) as e:
+            specmod.validate(d, "x.yaml")
+        self.assertIn("carla-1.0", str(e.exception))
+        d = doc()
+        d["carla"] = {"physics": d["bodies"]["carla-0.9.16"]["carla"]["physics"]}
+        with self.assertRaises(specmod.SpecError) as e:
+            specmod.validate(d, "x.yaml")
+        self.assertIn("bodies.<name>.carla.physics", str(e.exception))
+        d = doc()
+        d["simulators"]["isaac"] = "carla-0.9.15"
+        with self.assertRaises(specmod.SpecError):
+            specmod.validate(d, "x.yaml")
+
+
 class HashTest(unittest.TestCase):
     def load(self, d):
-        return specmod.Spec(SPEC, d)
+        return specmod.effective(specmod.Spec(SPEC, d), "carla-0.9.16")
 
     def test_words_do_not_change_the_hash(self):
         base = specmod.spec_hash(self.load(doc()))
@@ -220,7 +307,7 @@ class HashTest(unittest.TestCase):
     def test_a_value_changes_the_hash(self):
         base = specmod.spec_hash(self.load(doc()))
         d = doc()
-        d["geometry"]["wheel_base"] = 3.006
+        d["bodies"]["carla-0.9.16"]["geometry"]["wheel_base"] = 3.006
         self.assertNotEqual(specmod.spec_hash(self.load(d)), base)
 
     def test_moving_a_sensor_keeps_the_physics_hash(self):
@@ -254,7 +341,9 @@ class GeneratedTest(unittest.TestCase):
         hashes = {p.stem: specmod.spec_hash(specmod.load(p))
                   for p in sorted(Path(ROOT, "vehicles").glob("*.yaml"))}
         for path, text in gen.outputs(ROOT).items():
-            names = list(hashes) if path.startswith("catalogs/") else [path.split("/")[1]]
+            names = ([n for n in hashes if f'<Vehicle name="{n}"' in text]
+                     if path.startswith("catalogs/") else [path.split("/")[1]])
+            self.assertTrue(names, path)
             head = "\n".join(text.split("\n", len(hashes) + 2)[:len(hashes) + 2])
             for name in names:
                 self.assertIn(hashes[name], head, f"{path}: {name}")
@@ -274,7 +363,7 @@ class GeneratedTest(unittest.TestCase):
             self.assertIn(f'"${name}"', xosc)
 
     def test_carla_physics_is_the_spec_car(self):
-        doc = gen.carla_physics_doc(specmod.load(SPEC))
+        doc = gen.carla_physics_doc(specmod.effective(specmod.load(SPEC), "carla-0.9.16"))
         v, w = doc["vehicle"], doc["wheels"]
         self.assertEqual((v["mass"], v["final_ratio"], v["max_rpm"]), (1760.0, 10.0, 15200.0))
         # flat to base speed (194 kW / 340 N m), constant power above, zero at max_rpm
@@ -296,8 +385,26 @@ class GeneratedTest(unittest.TestCase):
 
     def test_no_carla_physics_no_file(self):
         d = yaml.safe_load(SPEC.read_text())
-        del d["carla"]["physics"]
-        self.assertIsNone(gen.carla_physics_doc(specmod.Spec(SPEC, d)))
+        del d["bodies"]["carla-0.9.16"]["carla"]["physics"]
+        e = specmod.effective(specmod.Spec(SPEC, d), "carla-0.9.16")
+        self.assertIsNone(gen.carla_physics_doc(e))
+        self.assertIsNone(gen.carla_physics_1_0_doc(e))
+
+    def test_the_1_0_physics_is_its_bodys(self):
+        e = specmod.effective(specmod.load(SPEC), "carla-1.0")
+        doc = gen.carla_physics_1_0_doc(e)
+        self.assertEqual(doc["vehicle"]["final_ratio"], 9.084)
+        self.assertEqual({w["radius_m"] for w in doc["wheels"]}, {0.336})
+        # the CoM at 47 % of the body's wheel base ahead of its rear axle (actor frame)
+        self.assertAlmostEqual(doc["vehicle"]["center_of_mass"][0], -1.438 + 0.47 * 2.876, 3)
+        self.assertIsNone(gen.carla_physics_doc(e))
+
+    def test_each_body_has_its_catalog(self):
+        out = gen.outputs(ROOT)
+        self.assertIn('length="4.792"', out["catalogs/vehicles.xosc"])
+        one = out["catalogs/vehicles_carla-1.0.xosc"]
+        self.assertIn('<Dimensions width="2.088" height="1.443" length="4.694" />', one)
+        self.assertNotIn("drift_mustang", one)
 
 
 if __name__ == "__main__":

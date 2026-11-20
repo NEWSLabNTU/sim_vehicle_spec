@@ -129,6 +129,26 @@ class ValidationTest(unittest.TestCase):
         d["powertrain"]["model"] = "steam"
         self.refused(d, "powertrain.model 'steam'")
 
+    def test_a_component_powertrain_names_its_entry_point(self):
+        """scensim roadmap 091: the car's control component is the user's, named by entry point;
+        it needs no max_drive_torque, and only it may carry component and params."""
+        d = doc()
+        d["powertrain"] = {"model": "component", "component": "my_racer.vesc_servo",
+                           "params": {"erpm_gain": 4614.0}}
+        specmod.validate(d)
+        del d["powertrain"]["params"]
+        specmod.validate(d)
+        d["powertrain"]["component"] = " "
+        self.refused(d, "a component needs component: <entry point name>")
+        d["powertrain"] = {"model": "component", "component": "x", "params": [1]}
+        self.refused(d, "powertrain.params is not a mapping")
+        d = doc()
+        d["powertrain"]["component"] = "x"
+        self.refused(d, "powertrain.component: only a component powertrain has it")
+        d = doc()
+        del d["powertrain"]["max_drive_torque"]
+        self.refused(d, "powertrain: missing ['max_drive_torque']")
+
     def test_an_ev_needs_its_drive_unit(self):
         d = doc()
         d["powertrain"]["model"] = "ev"

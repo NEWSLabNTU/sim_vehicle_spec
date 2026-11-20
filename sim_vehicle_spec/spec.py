@@ -17,7 +17,7 @@ from .frames import compose, mount_transform
 SPEC_VERSION = 2
 # The powertrain models and drive axles a spec may name (autoware_isaac_bridge's aib.powertrain
 # realizes them; its tests check the two lists agree).
-MODELS = ("ideal", "physx", "ev", "fmu")
+MODELS = ("ideal", "physx", "ev", "fmu", "component")
 DRIVE_AXLES = ("rear", "front", "all")
 SENSOR_TYPES = ("lidar", "camera", "imu", "gnss")
 MOUNT_KEYS = ("x", "y", "z", "roll", "pitch", "yaw")
@@ -36,8 +36,8 @@ SECTIONS = {
                               "friction_vs_slip")),
     "brakes": (("max_brake_torque",), ("hold_brake_torque", "distribution", "dead_time",
                                         "time_constant", "abs")),
-    "powertrain": (("model", "max_drive_torque"),
-                   ("drive_axle", "front_drive_share", "gear_ratio", "motor_peak_torque",
+    "powertrain": (("model",),
+                   ("max_drive_torque", "component", "params", "drive_axle", "front_drive_share", "gear_ratio", "motor_peak_torque",
                     "motor_peak_power", "motor_max_rpm", "motor_time_constant",
                     "regen_max_torque", "regen_max_power", "regen_fade_speeds",
                     "traction_control", "differential")),
@@ -239,6 +239,21 @@ def validate(doc, where="spec"):
     model = pt["model"]
     if model not in MODELS:
         fail(f"powertrain.model {model!r}: one of {', '.join(MODELS)}")
+    if model == "component":
+        # the car's control component is the user's (scensim roadmap 091): named by its entry
+        # point in sim_vehicle_ecu's group, with its own parameters
+        name = pt.get("component")
+        if not (isinstance(name, str) and name.strip()):
+            fail("powertrain: a component needs component: <entry point name> (scensim's "
+                 "group scensim.vehicle_components)")
+        if "params" in pt and not isinstance(pt["params"], dict):
+            fail("powertrain.params is not a mapping")
+    else:
+        for k in ("component", "params"):
+            if k in pt:
+                fail(f"powertrain.{k}: only a component powertrain has it (model: component)")
+        if "max_drive_torque" not in pt:
+            fail("powertrain: missing ['max_drive_torque']")
     if model == "ev":
         missing = [k for k in EV_REQUIRED if k not in pt]
         if missing:

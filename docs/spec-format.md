@@ -92,8 +92,10 @@ footprint and height these give.
 | `brakes.distribution` | `brake_distribution` | `dynamic_axle_load` (ideal / EBD) or `static` |
 | `brakes.dead_time`, `time_constant` | `brake_dead_time`, `brake_time_constant` | `ev`: the hydraulics, a pure delay then a first-order pressure lag, s |
 | `brakes.abs.{enabled, slip_release, slip_reapply, release_rate, apply_rate, min_speed}` | `abs_*` | `ev`: per wheel, the pressure factor falls at `release_rate` (1/s) while the wheel's slip is past `slip_release`, climbs at `apply_rate` once within `slip_reapply`; off below `min_speed` m/s |
-| `powertrain.model` | `powertrain` | `ideal` or `ev`; `physx`, `fmu` reserved (design.md) |
-| `powertrain.max_drive_torque` | same | `ideal`'s cap, per wheel, N m |
+| `powertrain.model` | `powertrain` | `ideal` or `ev`; `component`: the user's own control component (scensim roadmap 091); `physx`, `fmu` reserved (design.md) |
+| `powertrain.component` | none | `component`, required: the name of its entry point in group `scensim.vehicle_components` (sim_vehicle_ecu's `component` module) |
+| `powertrain.params` | none | `component`: a mapping handed to it as is |
+| `powertrain.max_drive_torque` | same | `ideal`'s cap, per wheel, N m; required except for `component` |
 | `powertrain.drive_axle`, `front_drive_share` | same | `ev`: `rear`, `front` or `all` (then the front share of motor torque) |
 | `powertrain.differential.{type, preload, power_lock, coast_lock}` | `diff_type`, `diff_preload`, `diff_power_lock`, `diff_coast_lock` | `ev`: each driven axle's differential. `open` (default: each wheel half the axle torque), `locked` (a spool: both wheels at one speed), `lsd` (clutch type: torque moves from the faster wheel to the slower one up to `preload` N m plus `power_lock` of the axle torque under drive, `coast_lock` of it on the overrun, e.g. 0.5 / 0.25 for a 1.5-way) |
 | `powertrain.gear_ratio` | same | `ev`, required: motor to wheel, single speed |

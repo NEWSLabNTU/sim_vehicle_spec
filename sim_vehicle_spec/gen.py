@@ -117,6 +117,15 @@ def motor_curve(p, points=8):
     return curve
 
 
+def contact_not_applied(spec):
+    """What CARLA cannot apply of the spec's contact properties: CARLA has no physics material
+    per actor, so a body.contact is generated without, and named in the file (W24)."""
+    if (spec.doc.get("body") or {}).get("contact"):
+        return ["body.contact: CARLA has no per-actor physics material; the body collides with "
+                "its blueprint's (the contact material is Isaac's)"]
+    return []
+
+
 def carla_physics_doc(spec):
     """CARLA's VehiclePhysicsControl for the spec's car, SI units, CARLA's wheel order (front
     left, front right, rear left, rear right); None when the spec gives CARLA no physics."""
@@ -134,10 +143,11 @@ def carla_physics_doc(spec):
     nudge = [round(c - o, 4) for c, o in zip(com, cp["body_com"])]
     nudge[1] = -nudge[1] or 0.0
     drag = (r.get("drag_coefficient", 0.0) * r.get("frontal_area", 0.0) / cp["drag_area"])
-    friction = t["friction"] * cp["tire_friction_scale"]
     hold = b.get("hold_brake_torque", 0.0)
 
     def wheel(front):
+        t = specmod.axle_tires(spec.doc, front)
+        friction = t["friction"] * cp["tire_friction_scale"]
         return {"tire_friction": round(friction, 4),
                 "damping_rate": w.get("damping_rate", 0.25),
                 "max_steer_angle_deg": cp["max_steer_angle_deg"] if front else 0.0,
@@ -168,6 +178,7 @@ def carla_physics_doc(spec):
         "command_lags": {"brake_dead_time": b.get("dead_time", 0.0),
                          "brake_time_constant": b.get("time_constant", 0.0),
                          "motor_time_constant": p.get("motor_time_constant", 0.0)},
+        **({"not_applied": contact_not_applied(spec)} if contact_not_applied(spec) else {}),
     }
 
 
@@ -205,14 +216,14 @@ def carla_physics_1_0_doc(spec):
     drag = r.get("drag_coefficient", 0.0) * r.get("frontal_area", 0.0) / cp["chassis_area"]
     curve = motor_curve(p)
     peak = max(tq for _, tq in curve)
-    friction = round(t["friction"] * cp["friction_multiplier_scale"], 4)
     steer = round(math.degrees(g["max_steer_angle"]), 2)
     hold = b.get("hold_brake_torque", 0.0)
     drive = p.get("drive_axle", "rear")
 
     def wheel(front):
+        friction = specmod.axle_tires(spec.doc, front)["friction"]
         return {"radius_m": g["wheel_radius"],
-                "friction_force_multiplier": friction,
+                "friction_force_multiplier": round(friction * cp["friction_multiplier_scale"], 4),
                 "max_steer_angle_deg": steer if front else 0.0,
                 "max_brake_torque": b["max_brake_torque"],
                 "max_handbrake_torque": 0.0 if front else hold}
@@ -241,7 +252,7 @@ def carla_physics_1_0_doc(spec):
         "command_lags": {"brake_dead_time": b.get("dead_time", 0.0),
                          "brake_time_constant": b.get("time_constant", 0.0),
                          "motor_time_constant": p.get("motor_time_constant", 0.0)},
-        "not_applied": list(CHAOS_NOT_APPLIED),
+        "not_applied": list(CHAOS_NOT_APPLIED) + contact_not_applied(spec),
     }
 
 
@@ -271,6 +282,7 @@ def carla_physics(spec, header):
         "right; center_of_mass is CARLA's nudge of the body's own (CARLA's axes, y right).\n"
         "Not modelled by CARLA, named here: the rear-wheel drive (CARLA drives its 4W\n"
         "differential), ABS, regen and traction control, rolling resistance.") \
+        + "".join(emit.comment(f"Not applied on CARLA: {n}") for n in contact_not_applied(spec)) \
         + emit.yaml_text(body)
 
 

@@ -21,6 +21,10 @@ pub struct CarlaPhysics {
     pub vehicle: Vehicle,
     pub wheels: Vec<Wheel>,
     pub command_lags: CommandLags,
+    /// What the spec says that CARLA cannot apply (a body's contact material), named for the
+    /// consumer to log; empty for most cars (scensim roadmap 091 W24).
+    #[serde(default)]
+    pub not_applied: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -231,6 +235,16 @@ mod tests {
         assert_eq!(p.peak_torque(), 340.0);
         assert_eq!(p.wheels[2].max_handbrake_torque, 1500.0);
         assert!(p.differences(&p.as_read_back(), 1.0).is_empty());
+        assert!(p.not_applied.is_empty());
+    }
+
+    #[test]
+    fn a_not_applied_list_is_read() {
+        let text = std::fs::read_to_string(SHIPPED).unwrap()
+            + "not_applied:\n- 'body.contact: CARLA has no per-actor physics material'\n";
+        let p: CarlaPhysics = serde_yaml::from_str(&text).unwrap();
+        assert_eq!(p.not_applied.len(), 1);
+        assert!(p.not_applied[0].starts_with("body.contact"));
     }
 
     #[test]

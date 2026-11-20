@@ -25,7 +25,7 @@ Frame: base_link, the rear axle centre on the ground, x forward, y left, z up.
 | `spec_version` | yes | `2` |
 | `name` | yes | names everything generated: Autoware's packages (`<name>_description`, `<name>_sensor_kit_description`, ...), the catalog entry, `generated/<name>/` |
 | `description` | no | one line |
-| `body` | no | `catalogue_model`: the body, a CARLA blueprint id (with `bodies`, each body's own); also the Isaac vehicle catalogue's key and the catalog entry's `model3d`. `ground_clearance`: m, unladen, from the road to the underbody's lowest point between the axles; the Isaac rig puts a skid plate there (without it, nothing under the body collides). Not a physics section: moving it leaves the pedal maps alone |
+| `body` | no | `catalogue_model`: the body, a CARLA blueprint id (with `bodies`, each body's own); also the Isaac vehicle catalogue's key and the catalog entry's `model3d`. `ground_clearance`: m, unladen, from the road to the underbody's lowest point between the axles; the Isaac rig puts a skid plate there (without it, nothing under the body collides). `contact`: the body's physics material where it touches walls and objects (below, "The body's contact"). Not a physics section: moving it leaves the pedal maps alone |
 | `geometry` | yes | below; with `bodies`, the real car's |
 | `mirror` | yes | Autoware's `mirror.param.yaml` keys, as is |
 | `inertia` | yes | below |
@@ -88,6 +88,8 @@ footprint and height these give.
 | `wheels.mass`, `wheels.damping_rate` | `wheel_mass`, `wheel_damping_rate` | moment of inertia 0.5 m r^2 |
 | `tires.friction` | `tire_friction` | each wheel's friction table default (a host's surface layer may write another per wheel) |
 | `tires.lat_stiff_max_load`, `lat_stiff_value`, `long_stiff_value`, `friction_vs_slip` | same | PhysX's tire model: lateral stiffness graph (rest loads, N/rad per N of rest load), longitudinal stiffness per g, friction vs slip points |
+| `tires.front`, `tires.rear` | the axle's wheels' tyre fields | optional: one axle's `friction`, `lat_stiff_max_load`, `lat_stiff_value`, `long_stiff_value` where they differ from `tires` (below, "Tyres per axle") |
+| `body.contact.{restitution, static_friction, dynamic_friction, combine}` | `contact` | optional: a physics material on the chassis's colliders (below, "The body's contact") |
 | `brakes.max_brake_torque`, `hold_brake_torque` | same | per wheel |
 | `brakes.distribution` | `brake_distribution` | `dynamic_axle_load` (ideal / EBD) or `static` |
 | `brakes.dead_time`, `time_constant` | `brake_dead_time`, `brake_time_constant` | `ev`: the hydraulics, a pure delay then a first-order pressure lag, s |
@@ -116,6 +118,39 @@ An `ev` spec must give `gear_ratio`, `motor_peak_torque`, `motor_peak_power` and
 one spec carries both and `powertrain.model` (or an ego config's `vehicle: {powertrain: ev}`)
 picks. `powertrain.rolling_resistance` (a force folded into `ideal`'s command, with no
 physical counterpart) is gone: a spec naming it is refused with a pointer to `resistance`.
+
+### Tyres per axle
+
+`tires.front` and `tires.rear` (scensim roadmap 091 W24) each name the keys in which that
+axle's tyres differ from `tires`: `friction`, `lat_stiff_max_load`, `lat_stiff_value`,
+`long_stiff_value`, each positive. Any other key, `friction_vs_slip` included, is refused by
+name, and so is an empty mapping. `tires`' own keys stay required and stay the default for
+both axles. `sim_vehicle_spec.spec.axle_tires(doc, front)` is one axle's tyres.
+
+A car's front and rear tyres often differ. ForzaETH's identified F1TENTH tyres are about twice
+as stiff at the rear as at the front, and one tyre for all four wheels cannot reproduce their
+steady circles (scensim roadmap 091 W8). The Isaac rig gives each wheel its axle's tyre, and
+CARLA's `carla_physics.yaml` does the same per wheel (below). The onboard computers' single
+`tire_friction` (sim_vehicle_ecu's `Calibration`) is the lower of the two axles' frictions:
+ESC's target and the brake module's friction estimate read that one value, a prior per car,
+not per axle.
+
+### The body's contact
+
+`body.contact` (W24) is the body's physics material where it touches walls, cones and other
+objects: `restitution` in [0, 1], `static_friction` and `dynamic_friction` >= 0, and `combine`,
+one of PhysX's modes `average` (PhysX's default), `min`, `max` or `multiply`, applied to both
+the friction and the restitution. Any of them may be given. An empty mapping is refused.
+Without it the body collides with the simulator's default material, as before.
+
+PhysX combines the two materials of a pair. An object authored at restitution 1.0 returns a
+car without a contact material at 0.41 of its impact speed, and at 0.86 with restitution 1.0
+on the body too (scensim roadmap 091 W9). So a wall or cone push measured on the real car
+needs the body's side authored here, as the stage carries the object's.
+
+The Isaac rig binds it on the chassis's colliders. CARLA has no physics material per actor, so
+CARLA's files are generated without it and name it: an entry in their `not_applied`, and a
+header line `Not applied on CARLA: body.contact ...` in `carla_physics.yaml`.
 
 Every rig field is a `VehicleParams` field (autoware_isaac_bridge's `aib/params.py`), so an
 ego config's `vehicle:` override uses the same names.
@@ -205,7 +240,10 @@ and one forward gear; `drag_coefficient` (Cd A over CARLA's drag area); per whee
 friction (`tires.friction` x `tire_friction_scale`), the PhysX tire stiffnesses,
 `max_brake_torque`, `hold_brake_torque` as the rear wheels' handbrake, the radius;
 `command_lags` (`brakes.dead_time`, `brakes.time_constant`, `powertrain.motor_time_constant`)
-for the vehicle bridge's command path, since CARLA's model has none.
+for the vehicle bridge's command path, since CARLA's model has none. With `tires.front` or
+`tires.rear`, each wheel takes its axle's friction and stiffnesses. With `body.contact`, the
+file has a `not_applied` list naming it (CARLA has no per-actor material); without, it has
+none.
 
 `carla.physics` holds what the spec's sections cannot say:
 
@@ -281,8 +319,9 @@ From the spec as the body: `mass`; `center_of_mass` absolute in the actor frame 
 `com_front_fraction` of the body's wheel base ahead of its rear axle, `com_height` up);
 `max_torque` and `torque_curve` normalised to it; `final_ratio` the body's `gear_ratio`;
 `differential` from `drive_axle`; `drag_coefficient` (Cd A over `chassis_area`); per wheel the
-body's radius, `friction_force_multiplier`, the steer limit, the brake torques; the same
-`command_lags` as `carla_physics.yaml`.
+body's radius, `friction_force_multiplier` (its axle's friction with `tires.front` or
+`tires.rear`), the steer limit, the brake torques; the same `command_lags` as
+`carla_physics.yaml`. A `body.contact` is added to `not_applied`.
 
 ## The catalog
 
@@ -360,6 +399,11 @@ sections `geometry`, `inertia`, `wheels`, `tires`, `brakes`, `powertrain`, `resi
 `carla.physics` (null without it). The pedal maps measured on CARLA carry it
 (autoware_sim_vehicle's `pedal_maps.yaml`), so moving a sensor does not invalidate them, and
 `carla_physics.yaml` names it.
+
+The optional keys of W24 move the hashes only when written, so a spec without them keeps both.
+`tires.front` and `tires.rear` are in `tires`, so they move `physics_hash` and with it the
+pedal maps' key. `body.contact` moves `spec_hash` (it covers the whole spec) but not
+`physics_hash`: collisions do not drive the car, and the pedal maps stay valid.
 
 With `bodies`, `spec_hash` is the file's (every body's outputs name the same), and
 `physics_hash` is a body's: computed over `effective(spec, body)`, so each body has its own,

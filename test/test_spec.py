@@ -466,3 +466,104 @@ class GeneratedTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ContactPropertiesTest(unittest.TestCase):
+    """Per-axle tyres and the body's contact material (scensim roadmap 091 W24): optional, so a
+    spec without them is the car it was, hashes and outputs included."""
+
+    def body_doc(self, d, body="carla-0.9.16"):
+        return specmod.effective(specmod.Spec(SPEC, d), body)
+
+    def refused(self, d, text):
+        with self.assertRaises(specmod.SpecError) as e:
+            specmod.validate(d, "x.yaml")
+        self.assertIn(text, str(e.exception))
+
+    def test_every_shipped_cars_hashes_are_its_committed_files(self):
+        for path in sorted((ROOT / "vehicles").glob("*.yaml")):
+            s = specmod.load(path)
+            for name, body in (("carla_physics.yaml", "carla-0.9.16"),
+                               ("carla_physics_1.0.yaml", "carla-1.0")):
+                f = ROOT / "generated" / path.stem / name
+                if not f.exists():
+                    continue
+                committed = yaml.safe_load(f.read_text())
+                e = specmod.effective(s, body if (s.source or s.doc).get("bodies") else None)
+                with self.subTest(car=path.stem, file=name):
+                    self.assertEqual(specmod.spec_hash(e), committed["spec_hash"])
+                    self.assertEqual(specmod.physics_hash(e), committed["physics_hash"])
+                    self.assertNotIn("not_applied", committed if name == "carla_physics.yaml" else {})
+
+    def test_an_axle_names_only_tyre_keys(self):
+        d = doc()
+        d["tires"]["front"] = {"friction_vs_slip": [[0.0, 1.0]]}
+        self.refused(d, "tires.front: unknown key(s) ['friction_vs_slip']")
+        d = doc()
+        d["tires"]["rear"] = {}
+        self.refused(d, "tires.rear is empty")
+        d = doc()
+        d["tires"]["rear"] = {"lat_stiff_value": 0.0}
+        self.refused(d, "tires.rear.lat_stiff_value must be positive")
+        d = doc()
+        d["tires"]["front"] = {"friction": 0.9}
+        specmod.validate(d)
+
+    def test_an_axle_overrides_the_cars_tyres(self):
+        d = doc()
+        d["tires"]["rear"] = {"lat_stiff_value": 40.0}
+        front, rear = specmod.axle_tires(d, True), specmod.axle_tires(d, False)
+        self.assertEqual(front, {k: v for k, v in doc()["tires"].items()})
+        self.assertEqual(rear["lat_stiff_value"], 40.0)
+        self.assertEqual(rear["friction"], d["tires"]["friction"])
+        self.assertNotIn("rear", rear)
+
+    def test_carla_takes_the_axles_per_wheel(self):
+        d = doc()
+        d["tires"]["front"] = {"friction": 0.9, "lat_stiff_value": 15.0}
+        base = gen.carla_physics_doc(self.body_doc(doc()))["wheels"]
+        w = gen.carla_physics_doc(self.body_doc(d))["wheels"]
+        scale = base[0]["tire_friction"] / doc()["tires"]["friction"]
+        self.assertEqual([x["tire_friction"] for x in w],
+                         [round(0.9 * scale, 4)] * 2 + [base[2]["tire_friction"]] * 2)
+        self.assertEqual([x["lat_stiff_value"] for x in w],
+                         [15.0, 15.0, base[2]["lat_stiff_value"], base[3]["lat_stiff_value"]])
+        w1 = gen.carla_physics_1_0_doc(self.body_doc(d, "carla-1.0"))["wheels"]
+        b1 = gen.carla_physics_1_0_doc(self.body_doc(doc(), "carla-1.0"))["wheels"]
+        self.assertLess(w1[0]["friction_force_multiplier"], b1[0]["friction_force_multiplier"])
+        self.assertEqual(w1[2]["friction_force_multiplier"], b1[2]["friction_force_multiplier"])
+
+    def test_the_contact_is_checked(self):
+        for contact, text in (({"restitution": 1.5}, "restitution must be in [0, 1]"),
+                              ({"dynamic_friction": -0.1}, "dynamic_friction must be >= 0"),
+                              ({"combine": "mean"}, "combine 'mean'"),
+                              ({"bounce": 0.2}, "body.contact: unknown key(s) ['bounce']"),
+                              ({}, "body.contact is empty")):
+            d = doc()
+            d.setdefault("body", {})["contact"] = contact
+            with self.subTest(contact=contact):
+                self.refused(d, text)
+
+    def test_carla_names_the_contact_it_cannot_apply(self):
+        d = doc()
+        d.setdefault("body", {})["contact"] = {"restitution": 0.3, "combine": "min"}
+        e = self.body_doc(d)
+        p = gen.carla_physics_doc(e)
+        self.assertEqual(len(p["not_applied"]), 1)
+        self.assertIn("body.contact", p["not_applied"][0])
+        self.assertIn("Not applied on CARLA: body.contact", gen.carla_physics(e, "h"))
+        n = gen.carla_physics_1_0_doc(self.body_doc(d, "carla-1.0"))["not_applied"]
+        self.assertEqual(n[:-1], list(gen.CHAOS_NOT_APPLIED))
+        self.assertIn("body.contact", n[-1])
+        self.assertNotIn("not_applied", gen.carla_physics_doc(self.body_doc(doc())))
+
+    def test_the_contact_moves_the_spec_hash_not_the_physics_hash(self):
+        e0 = self.body_doc(doc())
+        d = doc()
+        d.setdefault("body", {})["contact"] = {"restitution": 0.3}
+        e = self.body_doc(d)
+        self.assertNotEqual(specmod.spec_hash(e), specmod.spec_hash(e0))
+        self.assertEqual(specmod.physics_hash(e), specmod.physics_hash(e0))
+        d = doc()
+        d["tires"]["rear"] = {"friction": 1.1}
+        self.assertNotEqual(specmod.physics_hash(self.body_doc(d)), specmod.physics_hash(e0))

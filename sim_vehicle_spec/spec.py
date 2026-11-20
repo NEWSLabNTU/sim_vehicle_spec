@@ -24,7 +24,7 @@ MOUNT_KEYS = ("x", "y", "z", "roll", "pitch", "yaw")
 
 # section -> (required keys, optional keys)
 SECTIONS = {
-    "body": ((), ("catalogue_model", "ground_clearance")),
+    "body": ((), ("catalogue_model", "ground_clearance", "contact")),
     "geometry": (("wheel_base", "wheel_tread", "wheel_radius", "wheel_width", "front_overhang",
                   "rear_overhang", "left_overhang", "right_overhang", "vehicle_height",
                   "max_steer_angle"), ()),
@@ -33,7 +33,7 @@ SECTIONS = {
     "inertia": (("mass", "com_front_fraction", "com_height"), ("com_lateral", "inertia_box")),
     "wheels": (("mass",), ("damping_rate",)),
     "tires": (("friction",), ("lat_stiff_max_load", "lat_stiff_value", "long_stiff_value",
-                              "friction_vs_slip")),
+                              "friction_vs_slip", "front", "rear")),
     "brakes": (("max_brake_torque",), ("hold_brake_torque", "distribution", "dead_time",
                                         "time_constant", "abs")),
     "powertrain": (("model",),
@@ -106,7 +106,17 @@ BRAKE_DISTRIBUTIONS = ("dynamic_axle_load", "static")
 # powertrain.differential.type: each driven axle's differential
 DIFFERENTIALS = ("open", "locked", "lsd")
 # Nested mappings: (section, key) -> their keys (all optional)
+# tires.front, tires.rear: one axle's tyres where they differ from `tires` (scensim roadmap 091
+# W24): the keys each simulator takes per wheel. friction_vs_slip stays the car's.
+AXLE_TIRE_KEYS = ("friction", "lat_stiff_max_load", "lat_stiff_value", "long_stiff_value")
+# body.contact: the body's physics material where it touches walls and objects (W24); absent,
+# the simulator's default material. Not a physics section's: collisions do not drive the car.
+CONTACT_KEYS = ("restitution", "static_friction", "dynamic_friction", "combine")
+COMBINE_MODES = ("average", "min", "max", "multiply")
 SUBSECTIONS = {
+    ("tires", "front"): AXLE_TIRE_KEYS,
+    ("tires", "rear"): AXLE_TIRE_KEYS,
+    ("body", "contact"): CONTACT_KEYS,
     ("brakes", "abs"): ("enabled", "slip_release", "slip_reapply", "release_rate",
                         "apply_rate", "min_speed"),
     ("powertrain", "traction_control"): ("enabled", "slip_limit", "slip_reapply",
@@ -293,6 +303,27 @@ def validate(doc, where="spec"):
     gc = (doc.get("body") or {}).get("ground_clearance")
     if gc is not None and not 0.0 < float(gc) < float(g["wheel_radius"]):
         fail("body.ground_clearance must be positive and below the wheel radius")
+    for axle in ("front", "rear"):
+        over = doc["tires"].get(axle)
+        if over is None:
+            continue
+        if not over:
+            fail(f"tires.{axle} is empty: name what differs from tires, or leave it out")
+        for k, v in over.items():
+            if not float(v) > 0:
+                fail(f"tires.{axle}.{k} must be positive")
+    contact = (doc.get("body") or {}).get("contact")
+    if contact is not None:
+        if not contact:
+            fail("body.contact is empty: name its restitution, frictions or combine mode")
+        if "restitution" in contact and not 0.0 <= float(contact["restitution"]) <= 1.0:
+            fail("body.contact.restitution must be in [0, 1]")
+        for k in ("static_friction", "dynamic_friction"):
+            if k in contact and not float(contact[k]) >= 0.0:
+                fail(f"body.contact.{k} must be >= 0")
+        mode = contact.get("combine", "average")
+        if mode not in COMBINE_MODES:
+            fail(f"body.contact.combine {mode!r}: one of {', '.join(COMBINE_MODES)}")
     if not 0.0 < float(doc["inertia"]["com_front_fraction"]) < 1.0:
         fail("inertia.com_front_fraction must be in (0, 1)")
     sensors = doc.get("sensors") or {}
@@ -503,6 +534,14 @@ def axles(spec):
     g = spec.doc["geometry"]
     return {"front_x": g["wheel_base"], "rear_x": 0.0, "track": g["wheel_tread"],
             "wheel_radius": g["wheel_radius"]}
+
+
+def axle_tires(doc, front):
+    """One axle's tyres: `tires` with that axle's override (tires.front or tires.rear) on top."""
+    t = doc["tires"]
+    out = {k: v for k, v in t.items() if k not in ("front", "rear")}
+    out.update(t.get("front" if front else "rear") or {})
+    return out
 
 
 # What a fingerprint leaves out: words, not the car.

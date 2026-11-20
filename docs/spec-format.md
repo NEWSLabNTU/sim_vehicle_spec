@@ -140,7 +140,7 @@ sensors:
       intensity:                         #   a lidar of blueprint sensor.lidar.ray_cast_semantic only (and required there)
         reflectance: {<tag>: <0-255>}    #     by CARLA semantic tag name (Roads, Car, ...)
         default: <0-255>                 #     for the tags not named (default 0)
-    # lidar:  channels, rate_hz, range, vertical_fov
+    # lidar:  channels, rate_hz, range, vertical_fov; horizontal_fov, beams, min_range, message
     # camera: width, height, horizontal_fov (deg), rate_hz, info_topic
     # imu, gnss: rate_hz
 ```
@@ -154,6 +154,28 @@ A sensor's CARLA attributes come from the shared fields where they say the same 
 `channels`, `range`, `rotation_frequency` from `rate_hz`, `upper_fov` and `lower_fov` from
 `vertical_fov`; camera: `image_size_x`, `image_size_y`, `fov`, `sensor_tick` from `rate_hz`;
 imu, gnss: `sensor_tick` from `rate_hz`), then from `carla.attributes`.
+
+A lidar's `message` is `point_cloud` (default), or `laser_scan` for a planar scanner, such as a
+RoboRacer's Hokuyo UST-10LX:
+
+```yaml
+  laser:
+    type: lidar
+    message: laser_scan
+    channels: 1
+    vertical_fov: [0.0, 0.0]
+    horizontal_fov: 270.0   # deg, centred on the sensor's x
+    beams: 1081             # across horizontal_fov, both ends included, as urg_node counts them
+    rate_hz: 40.0
+    range: 10.0             # m
+    min_range: 0.06         # m
+```
+
+A `laser_scan` lidar has one ring, and its step (`horizontal_fov / (beams - 1)`) must divide
+360 deg into whole columns: Isaac fires a full turn of them and keeps the scan's window. On
+Isaac it is published as `sensor_msgs/LaserScan` on the sensor's `topic`. `horizontal_fov` also
+reaches CARLA's lidar, and a `laser_scan` sets CARLA's `points_per_second` to one point per beam
+(`carla.attributes` win, as everywhere).
 
 A lidar's `carla.intensity` makes its points' intensity: acb_bridge publishes the semantic
 lidar's points with intensity `reflectance[tag] x |cos(incidence)|`, rounded and clamped to

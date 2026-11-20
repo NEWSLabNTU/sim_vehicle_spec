@@ -60,6 +60,11 @@ def carla_attributes(sensor):
         out["rotation_frequency"] = sensor["rate_hz"]
         out["upper_fov"] = sensor["vertical_fov"][1]
         out["lower_fov"] = sensor["vertical_fov"][0]
+        if "horizontal_fov" in sensor:
+            out["horizontal_fov"] = sensor["horizontal_fov"]
+        if sensor.get("message") == "laser_scan":
+            # CARLA spreads a turn's points over horizontal_fov: one per beam
+            out["points_per_second"] = sensor["beams"] * sensor["rate_hz"]
     elif t == "camera":
         out["image_size_x"] = sensor["width"]
         out["image_size_y"] = sensor["height"]

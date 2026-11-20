@@ -206,6 +206,36 @@ class ValidationTest(unittest.TestCase):
         del d["sensors"]["camera6"]["width"]
         self.refused(d, "a camera needs width")
 
+    def test_a_planar_lidar(self):
+        """scensim 091 W19: a UST-10LX class scanner, 1081 beams over 270 deg as LaserScan."""
+        from sim_vehicle_spec import gen as specgen
+        from sim_vehicle_spec import spec as specmod
+
+        d = doc()
+        top = d["sensors"]["top"]
+        top.update(channels=1, vertical_fov=[0.0, 0.0], horizontal_fov=270.0, beams=1081,
+                   rate_hz=40.0, range=10.0, min_range=0.06, message="laser_scan")
+        top["carla"].pop("attributes", None)  # the Tesla's own (an OS1's) would win, as they do
+        specmod.validate(d)
+        self.assertEqual(specmod.planar_columns(top), 1440)
+        attrs = specgen.carla_attributes(top)
+        self.assertEqual((attrs["horizontal_fov"], attrs["points_per_second"]), ("270.0", "43240.0"))
+        bad = copy.deepcopy(d)
+        bad["sensors"]["top"]["beams"] = 1082  # 1081 steps over 270 deg: 1441.3 columns a turn
+        self.refused(bad, "does not divide 360 deg into whole columns")
+        bad = copy.deepcopy(d)
+        bad["sensors"]["top"]["channels"] = 16
+        self.refused(bad, "a laser_scan lidar has one ring")
+        bad = copy.deepcopy(d)
+        del bad["sensors"]["top"]["beams"]
+        self.refused(bad, "a laser_scan lidar needs beams")
+        bad = copy.deepcopy(d)
+        bad["sensors"]["top"]["message"] = "scan"
+        self.refused(bad, "message 'scan': one of point_cloud, laser_scan")
+        bad = copy.deepcopy(d)
+        bad["sensors"]["top"]["min_range"] = 20.0
+        self.refused(bad, "min_range 20.0")
+
     def test_links_are_unique(self):
         d = doc()
         d["sensors"]["imu2"] = copy.deepcopy(d["sensors"]["imu"])

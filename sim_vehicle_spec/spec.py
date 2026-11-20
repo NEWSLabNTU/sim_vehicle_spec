@@ -94,11 +94,14 @@ BODY_POWERTRAIN_KEYS = ("gear_ratio", "regen_max_torque")
 SIMULATORS = ("isaac",)
 SENSOR_COMMON = ("type", "calibration_key", "link", "frame", "topic", "mount", "isaac", "carla")
 SENSOR_EXTRA = {
-    "lidar": ("channels", "rate_hz", "range", "vertical_fov"),
+    "lidar": ("channels", "rate_hz", "range", "vertical_fov", "horizontal_fov", "beams",
+              "min_range", "message"),
     "camera": ("width", "height", "horizontal_fov", "rate_hz", "info_topic"),
     "imu": ("rate_hz",),
     "gnss": ("rate_hz",),
 }
+# a lidar's `message`: a spinning lidar's cloud, or a planar scanner's LaserScan (scensim 091 W19)
+LIDAR_MESSAGES = ("point_cloud", "laser_scan")
 BRAKE_DISTRIBUTIONS = ("dynamic_axle_load", "static")
 # powertrain.differential.type: each driven axle's differential
 DIFFERENTIALS = ("open", "locked", "lsd")
@@ -319,6 +322,8 @@ def validate(doc, where="spec"):
             for k in ("width", "height", "horizontal_fov"):
                 if k not in s:
                     fail(f"{where_s}: a camera needs {k}")
+        if t == "lidar":
+            _check_planar(s, where_s, fail)
         carla = s.get("carla")
         if carla is not None:
             if not isinstance(carla, dict):
@@ -407,6 +412,42 @@ def _check_intensity(sensor_type, carla, where, fail):
     for k, v in [*r.items(), ("default", m.get("default", 0))]:
         if isinstance(v, bool) or not isinstance(v, (int, float)) or not 0 <= v <= 255:
             fail(f"{where}.intensity: {k} {v!r} is not in 0-255")
+
+
+def _check_planar(s, where, fail):
+    """A lidar's `message` and its planar fields: `laser_scan` is a one-ring scanner (channels
+    1, vertical_fov [a, a]) whose `beams` span `horizontal_fov` inclusively, as urg_node counts
+    a UST-10LX's 1081 over 270 deg; its step must divide 360 deg into whole columns (Isaac
+    fires a full turn and keeps the scan's window)."""
+    msg = s.get("message", "point_cloud")
+    if msg not in LIDAR_MESSAGES:
+        fail(f"{where}.message {msg!r}: one of {', '.join(LIDAR_MESSAGES)}")
+    hfov = s.get("horizontal_fov")
+    if hfov is not None and not (isinstance(hfov, (int, float)) and 0 < hfov <= 360):
+        fail(f"{where}.horizontal_fov {hfov!r}: degrees, in (0, 360]")
+    if s.get("min_range") is not None and not (isinstance(s["min_range"], (int, float))
+                                               and 0 <= s["min_range"] < s.get("range", math.inf)):
+        fail(f"{where}.min_range {s['min_range']!r}: m, 0 or more and below range")
+    if msg != "laser_scan":
+        return
+    for k in ("channels", "rate_hz", "range", "vertical_fov", "horizontal_fov", "beams"):
+        if k not in s:
+            fail(f"{where}: a laser_scan lidar needs {k}")
+    v = s["vertical_fov"]
+    if s["channels"] != 1 or not (isinstance(v, (list, tuple)) and len(v) == 2 and v[0] == v[1]):
+        fail(f"{where}: a laser_scan lidar has one ring: channels 1, vertical_fov [a, a]")
+    beams = s["beams"]
+    if not (isinstance(beams, int) and beams >= 2):
+        fail(f"{where}.beams {beams!r}: a whole number, 2 or more")
+    columns = (beams - 1) * 360.0 / hfov
+    if abs(columns - round(columns)) > 1e-6:
+        fail(f"{where}: {beams} beams over {hfov} deg is a step of {hfov / (beams - 1):g} deg, "
+             "which does not divide 360 deg into whole columns")
+
+
+def planar_columns(sensor):
+    """A laser_scan lidar's columns over a full turn: (beams - 1) x 360 / horizontal_fov."""
+    return int(round((sensor["beams"] - 1) * 360.0 / sensor["horizontal_fov"]))
 
 
 def lidar_reflectance(carla):

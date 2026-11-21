@@ -53,17 +53,42 @@ class ArticulationTest(unittest.TestCase):
     def test_suspension_rests_at_design_height(self):
         susp, inertia = self.s.section("suspension"), self.s.section("inertia")
         sprung = inertia["mass"] - 4 * self.s.section("wheels")["mass"]
-        load = 0.0
+        load, moment = 0.0, [0.0, 0.0]
         for c in art.CORNERS:
-            d = self.d["joints"][f"{c}_suspension"]["drive"]
-            load += d["stiffness"] * -d["target"]     # the spring's force at q = 0
-            share = inertia["com_front_fraction"] if c.startswith("front") else \
-                1 - inertia["com_front_fraction"]
-            m = sprung * share / 2
+            j = self.d["joints"][f"{c}_suspension"]
+            d = j["drive"]
+            f = d["stiffness"] * -d["target"]     # the spring's force at q = 0
+            load += f
+            moment[0] += f * j["origin"][0]
+            moment[1] += f * j["origin"][1]
+            m = f / art.G
             self.assertAlmostEqual(d["stiffness"], m * (2 * math.pi * susp["frequency"]) ** 2)
             self.assertAlmostEqual(d["damping"],
                                    2 * susp["damping_ratio"] * math.sqrt(d["stiffness"] * m))
         self.assertAlmostEqual(load, sprung * art.G, places=6)
+        # the springs carry the chassis about its own centre of mass: no static pitch or roll
+        com = self.d["links"]["chassis"]["com"]
+        self.assertAlmostEqual(moment[0], sprung * art.G * com[0], places=6)
+        self.assertAlmostEqual(moment[1], sprung * art.G * com[1], places=6)
+
+    def test_centre_of_mass_is_the_spec(self):
+        inertia = self.s.section("inertia")
+        L = self.s.section("geometry")["wheel_base"]
+        want = [inertia["com_front_fraction"] * L, inertia.get("com_lateral", 0.0),
+                inertia["com_height"]]
+        links = self.d["links"].values()
+        total = sum(l["mass"] for l in links)
+        for i in range(3):
+            self.assertAlmostEqual(sum(l["mass"] * l["com"][i] for l in links) / total, want[i],
+                                   places=9)
+
+    def test_every_inertia_is_physical(self):
+        for s in (self.s, specmod.load(ROOT / "vehicles" / "drift_mustang.yaml")):
+            for name, l in art.articulation_doc(s)["links"].items():
+                a, b, c = l["inertia"]
+                self.assertTrue(a > 0 and b > 0 and c > 0, name)
+                for x, y, z in ((a, b, c), (b, c, a), (c, a, b)):
+                    self.assertLessEqual(x, y + z + 1e-12, f"{s.name} {name}: {l['inertia']}")
 
     def test_spin_inertia_is_the_spec(self):
         w = self.s.section("wheels")["mass"]

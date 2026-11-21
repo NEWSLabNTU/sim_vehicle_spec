@@ -20,8 +20,11 @@ in `choices:` of every file, so a difference from another model is named, not hi
 - the chassis is a box over the body's footprint (wheel base, overhangs, tread, height above the
   ground clearance) carrying the sprung mass at the spec's centre of mass and, given
   `inertia.inertia_box`, that box's inertia;
-- a corner's unsprung mass is `wheels.mass`, split 0.8 wheel and 0.1 each to the upright and
-  knuckle (rear: 0.9 wheel); the wheel's spin inertia is the spec's, 0.5 x wheels.mass x r^2;
+- a corner's unsprung mass is `wheels.mass` at the hub, split 0.8 wheel and 0.1 each to the
+  upright and knuckle (rear: 0.9 wheel); the wheel's spin inertia is the spec's, 0.5 x
+  wheels.mass x r^2, its off-axis inertia at least a hoop's of that;
+- the chassis's centre of mass puts the whole car's at the spec's, and each corner's sprung
+  mass is the chassis's weight split from it (longitudinally and laterally);
 - the suspension spring is the spec's ride frequency on the corner's sprung mass, its damper the
   spec's damping ratio; q > 0 compresses it, and its drive targets minus the static sag, so the
   car rests at its design height (q = 0);
@@ -79,13 +82,24 @@ def articulation_doc(spec):
                                 f"wheels.mass {m_corner}")
     front = inertia["com_front_fraction"]
     clearance = body.get("ground_clearance", 0.0)
+    spec_com = [front * L, inertia.get("com_lateral", 0.0), inertia["com_height"]]
+    # the unsprung masses sit at the hubs, so the chassis carries what puts the whole car's
+    # centre of mass at the spec's (243's review), and the corners split the chassis's weight
+    # from that centre, longitudinally and laterally
+    hubs = {c: [L if c.startswith("front") else 0.0, T / 2 if c.endswith("left") else -T / 2, r]
+            for c in CORNERS}
+    com = [(m_total * spec_com[i] - sum(m_corner * h[i] for h in hubs.values())) / m_sprung
+           for i in range(3)]
+    front_c, left_c = com[0] / L, 0.5 + com[1] / T
+    if not (0 < front_c < 1 and 0 < left_c < 1):
+        raise specmod.SpecError(f"{spec.path}: the chassis's centre of mass {com} is not "
+                                "between the axles and the wheels")
 
     length = L + geo["front_overhang"] + geo["rear_overhang"]
     width = T + geo["left_overhang"] + geo["right_overhang"]
     height = geo["vehicle_height"] - clearance
     box_center = [(L + geo["front_overhang"] - geo["rear_overhang"]) / 2,
                   (geo["left_overhang"] - geo["right_overhang"]) / 2, clearance + height / 2]
-    com = [front * L, inertia.get("com_lateral", 0.0), inertia["com_height"]]
     ibox = inertia.get("inertia_box") or [length, width, height]
     links = {"chassis": {
         "shape": {"box": [length, width, height], "center": box_center},
@@ -93,21 +107,25 @@ def articulation_doc(spec):
     joints = {}
 
     k_steer = None
+    sags = []
     for c in CORNERS:
         is_front = c.startswith("front")
-        x = L if is_front else 0.0
-        y = T / 2 if c.endswith("left") else -T / 2
-        share = front if is_front else 1 - front
-        m_sp = m_sprung * share / 2                         # this corner's sprung mass
+        hub = hubs[c]
+        share = ((front_c if is_front else 1 - front_c)
+                 * (left_c if c.endswith("left") else 1 - left_c))
+        m_sp = m_sprung * share                             # this corner's sprung mass
         wn = 2 * math.pi * susp["frequency"]
         k = m_sp * wn * wn
         c_damp = 2 * susp["damping_ratio"] * math.sqrt(k * m_sp)
         sag = m_sp * G / k
-        hub = [x, y, r]
         m_wheel = m_corner * (1 - (2 if is_front else 1) * UPRIGHT_SHARE)
         spin_I = 0.5 * m_corner * r * r
         wheel_I = _cylinder_inertia(m_wheel, r, w)
-        wheel_I[1] = spin_I
+        # the spec's spin inertia on a lighter link: off-axis at least a hoop's of it, so the
+        # tensor stays physical (I_yy <= I_xx + I_zz; 243's review)
+        side = max(wheel_I[0], spin_I / 2 + m_wheel * w * w / 12)
+        wheel_I = [side, spin_I, side]
+        sags.append(sag)
         small = m_corner * UPRIGHT_SHARE
         small_I = _box_inertia(small, r / 2, w / 2, r / 2)
         links[f"{c}_upright"] = {"mass": small, "com": hub, "inertia": small_I, "position": hub}
@@ -176,6 +194,13 @@ def articulation_doc(spec):
             "suspension drive targets minus the static sag (q > 0 compresses), so the car "
             "rests at its design height (q = 0)",
             "the chassis box encloses the wheels: the consumer disables self-collisions",
+            "chassis centre of mass: where the whole car's is the spec's, the unsprung masses "
+            "at the hubs; the corners' sprung masses split from it",
+            "wheel off-axis inertia: at least a hoop's of the spin inertia, so the tensor is "
+            "physical",
+            f"static sag {max(sags):.4g} m of travel +-{susp['travel'] / 2:.4g} m: a lifted "
+            "wheel reaches the droop stop with "
+            f"{susp['travel'] / 2 - max(sags):.3g} m of preload left",
             ("steer drive: the spec's articulation.steer_drive" if art.get("steer_drive") else
              f"steer drive: {STEER_BANDWIDTH_HZ:g} Hz, damping ratio {STEER_DAMPING_RATIO:g}, "
              "on the knuckle and wheel's inertia about z"),

@@ -105,6 +105,16 @@ class ArticulationTest(unittest.TestCase):
         self.assertEqual(self.d["spec_hash"], specmod.spec_hash(self.s))
         self.assertEqual(self.d["physics_hash"], specmod.physics_hash(self.s))
 
+    def test_default_steer_holds_against_the_scrub_torque(self):
+        d = self.d["joints"]["front_left_steer"]["drive"]
+        g, links = self.s.section("geometry"), self.d["links"]
+        sus = self.d["joints"]["front_left_suspension"]["drive"]
+        load = sus["stiffness"] * -sus["target"] + self.s.section("wheels")["mass"] * art.G
+        scrub = art._axle_friction(self.s, "front") * load * g["wheel_width"] / 4
+        self.assertAlmostEqual(scrub / d["stiffness"], art.STEER_HOLD_RAD, places=9)
+        I_z = links["front_left_knuckle"]["inertia"][2] + links["front_left_wheel"]["inertia"][2]
+        self.assertAlmostEqual(d["damping"], 2 * math.sqrt(d["stiffness"] * I_z), places=6)
+
     def test_the_spec_names_its_drives(self):
         doc = copy.deepcopy(self.s.source)
         doc["articulation"] = {

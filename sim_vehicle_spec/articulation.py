@@ -30,8 +30,9 @@ in `choices:` of every file, so a difference from another model is named, not hi
   car rests at its design height (q = 0);
 - the wheel spins under an effort drive (the powertrain's torque, applied by the consumer) unless
   the spec's `articulation.spin_drive` names another drive (a velocity drive, as an RC car's);
-- the steer is a position drive, 10 Hz and critically damped on the knuckle and wheel's inertia
-  about z, unless `articulation.steer_drive` gives one;
+- the steer is a position drive as stiff as a rack (the front tyre's largest scrub torque moves
+  it 1 mrad), critically damped on the knuckle and wheel's inertia about z, unless
+  `articulation.steer_drive` gives one;
 - the tyre is a rigid cylinder in Coulomb contact: static and dynamic friction `tires.friction`
   per axle, combined by multiplication, unless `articulation.wheel_contact` says otherwise. It
   has no slip curve and no load sensitivity: that is the named difference from a vehicle model.
@@ -44,7 +45,7 @@ from . import spec as specmod
 G = 9.81
 CORNERS = ("front_left", "front_right", "rear_left", "rear_right")
 UPRIGHT_SHARE = 0.1          # of wheels.mass, each of the upright and the knuckle
-STEER_BANDWIDTH_HZ = 10.0    # the steer's position drive when the spec gives none
+STEER_HOLD_RAD = 1e-3       # the steer's error under the tyre's largest scrub torque
 STEER_DAMPING_RATIO = 1.0
 DRIVE_TYPES = ("effort", "velocity", "position")
 DRIVE_KEYS = ("type", "stiffness", "damping", "effort_limit", "velocity_limit")
@@ -142,9 +143,15 @@ def articulation_doc(spec):
                 if art.get("steer_drive"):
                     steer = dict(art["steer_drive"])
                 else:
-                    wn_s = 2 * math.pi * STEER_BANDWIDTH_HZ
-                    steer = {"type": "position", "stiffness": I_z * wn_s * wn_s,
-                             "damping": 2 * STEER_DAMPING_RATIO * I_z * wn_s}
+                    # stiff as a steering rack: the front tyre's largest scrub torque (mu N w
+                    # / 4, the contact's friction over its width) moves it STEER_HOLD_RAD
+                    # (scensim 139's smoke: a 10 Hz drive on the knuckle's inertia let the
+                    # outer wheel lag its target by 0.037 rad in a 0.5 m/s^2 turn)
+                    mu_f = _axle_friction(spec, "front")
+                    scrub = mu_f * (m_sp + m_corner) * G * w / 4
+                    k_s = scrub / STEER_HOLD_RAD
+                    steer = {"type": "position", "stiffness": k_s,
+                             "damping": 2 * STEER_DAMPING_RATIO * math.sqrt(k_s * I_z)}
                 k_steer = steer
             joints[f"{c}_steer"] = {
                 "type": "revolute", "parent": parent, "child": f"{c}_knuckle", "origin": hub,
@@ -202,8 +209,9 @@ def articulation_doc(spec):
             "wheel's spring reaches its free length "
             f"{susp['travel'] / 2 - max(sags):.3g} m before the droop stop",
             ("steer drive: the spec's articulation.steer_drive" if art.get("steer_drive") else
-             f"steer drive: {STEER_BANDWIDTH_HZ:g} Hz, damping ratio {STEER_DAMPING_RATIO:g}, "
-             "on the knuckle and wheel's inertia about z"),
+             f"steer drive: the front tyre's largest scrub torque (mu N w / 4) moves it "
+             f"{STEER_HOLD_RAD:g} rad; damping ratio {STEER_DAMPING_RATIO:g} on the knuckle and "
+             "wheel's inertia about z"),
             ("spin drive: the spec's articulation.spin_drive" if art.get("spin_drive") else
              "spin drive: effort (the consumer applies the powertrain's and brakes' torque)"),
             "tyre: a rigid cylinder in Coulomb contact, no slip curve, no load sensitivity",

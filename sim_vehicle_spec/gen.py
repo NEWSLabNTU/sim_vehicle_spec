@@ -3,6 +3,7 @@
     generated/<name>/carla_sensors.yaml   the sensors acb_bridge spawns on CARLA
     generated/<name>/carla_physics.yaml   CARLA's VehiclePhysicsControl for the car, and its lags
     generated/<name>/carla_physics_1.0.yaml  the same for CARLA 1.0's Chaos vehicle
+    generated/<name>/articulation[_<body>].yaml  the car as links and joints (articulation.py)
     catalogs/vehicles.xosc               the SSv2 vehicle catalog (one entry per spec)
     catalogs/<body>/vehicles.xosc        the same for each spec's other bodies
 
@@ -35,7 +36,7 @@ import sys
 import textwrap
 from pathlib import Path
 
-from . import emit
+from . import articulation, emit
 from . import spec as specmod
 
 TOOL = "sim_vehicle_spec.gen (`just generate`)"
@@ -392,6 +393,8 @@ def outputs(root):
     out = {}
     for s, rel in zip(specs, rels):
         for name, text in carla_files(s, emit.header(s, TOOL, rel)).items():
+            out[f"generated/{s.name}/{name}"] = text
+        for name, text in articulation.files(s, emit.header(s, TOOL, rel)).items():
             out[f"generated/{s.name}/{name}"] = text
     for name, text in catalogs(specs, rels).items():
         out[f"catalogs/{name}"] = text

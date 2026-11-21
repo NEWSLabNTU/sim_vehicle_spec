@@ -49,7 +49,13 @@ SECTIONS = {
     # Per simulator: what only that simulator's model needs.
     "isaac": ((), ("physx",)),
     "carla": ((), ("physics",)),
+    # The car as an articulation (scensim 092 K2.2b): drives and contact that the generator
+    # would otherwise choose (sim_vehicle_spec.articulation names its defaults)
+    "articulation": ((), ("spin_drive", "steer_drive", "wheel_contact")),
 }
+# articulation.spin_drive / steer_drive: a joint drive
+ARTICULATION_DRIVE_KEYS = ("type", "stiffness", "damping", "effort_limit", "velocity_limit")
+ARTICULATION_DRIVE_TYPES = ("effort", "velocity", "position")
 # isaac.physx: the PhysX vehicle's solver settings
 PHYSX_KEYS = ("substeps", "substep_threshold_speed", "min_active_slip_denominator",
               "min_passive_slip_denominator", "min_lateral_slip_denominator",
@@ -125,6 +131,9 @@ SUBSECTIONS = {
     ("isaac", "physx"): PHYSX_KEYS,
     ("carla", "physics"): CARLA_PHYSICS_KEYS,
     ("carla", "physics_1_0"): CARLA_PHYSICS_1_0_KEYS,
+    ("articulation", "spin_drive"): ARTICULATION_DRIVE_KEYS,
+    ("articulation", "steer_drive"): ARTICULATION_DRIVE_KEYS,
+    ("articulation", "wheel_contact"): CONTACT_KEYS,
 }
 # A body's carla: the calibration of its simulator's version
 BODY_CARLA_KEYS = ("physics", "physics_1_0")
@@ -247,6 +256,11 @@ def validate(doc, where="spec"):
             extra = set(v) - set(keys)
             if extra:
                 fail(f"{section}.{k}: unknown key(s) {sorted(extra)}")
+    for k in ("spin_drive", "steer_drive"):
+        d = (doc.get("articulation") or {}).get(k)
+        if d is not None and d.get("type") not in ARTICULATION_DRIVE_TYPES:
+            fail(f"articulation.{k}.type {d.get('type')!r}: one of "
+                 f"{', '.join(ARTICULATION_DRIVE_TYPES)}")
     _check_mount(doc["sensor_kit"]["mount"], "sensor_kit.mount", fail)
     pt = doc["powertrain"]
     model = pt["model"]

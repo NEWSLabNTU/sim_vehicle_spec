@@ -163,7 +163,7 @@ choices: ['unsprung mass split: 0.8 wheel and 0.1 each upright and knuckle (rear
     box encloses the wheels: the consumer disables self-collisions', 'chassis centre of mass: where the
     whole car''s is the spec''s, the unsprung masses at the hubs; the corners'' sprung masses split from
     it', 'wheel off-axis inertia: at least a hoop''s of the spin inertia, so the tensor is physical',
-  'static sag 0.06212 m of travel +-0.075 m: a lifted wheel reaches the droop stop with 0.0129 m of preload
-    left', 'steer drive: 10 Hz, damping ratio 1, on the knuckle and wheel''s inertia about z', 'spin drive:
-    effort (the consumer applies the powertrain''s and brakes'' torque)', 'tyre: a rigid cylinder in Coulomb
-    contact, no slip curve, no load sensitivity']
+  'static sag 0.06212 m of travel +-0.075 m: a lifted wheel''s spring reaches its free length 0.0129 m
+    before the droop stop', 'steer drive: 10 Hz, damping ratio 1, on the knuckle and wheel''s inertia
+    about z', 'spin drive: effort (the consumer applies the powertrain''s and brakes'' torque)', 'tyre:
+    a rigid cylinder in Coulomb contact, no slip curve, no load sensitivity']

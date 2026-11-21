@@ -199,8 +199,8 @@ def articulation_doc(spec):
             "wheel off-axis inertia: at least a hoop's of the spin inertia, so the tensor is "
             "physical",
             f"static sag {max(sags):.4g} m of travel +-{susp['travel'] / 2:.4g} m: a lifted "
-            "wheel reaches the droop stop with "
-            f"{susp['travel'] / 2 - max(sags):.3g} m of preload left",
+            "wheel's spring reaches its free length "
+            f"{susp['travel'] / 2 - max(sags):.3g} m before the droop stop",
             ("steer drive: the spec's articulation.steer_drive" if art.get("steer_drive") else
              f"steer drive: {STEER_BANDWIDTH_HZ:g} Hz, damping ratio {STEER_DAMPING_RATIO:g}, "
              "on the knuckle and wheel's inertia about z"),

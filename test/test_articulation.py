@@ -165,6 +165,30 @@ class ArticulationTest(unittest.TestCase):
         self.assertNotEqual(self.mushr_like(steer_law="parallel")["physics_hash"],
                             d["physics_hash"])
 
+    def with_asset(self, **over):
+        doc = copy.deepcopy(self.s.source)
+        asset = {"usd": "robots/car.usd", "sha256": "0" * 64, "source": "a repo at a commit",
+                 "licence": "BSD-3-Clause", "joints": {"front_left_steer": "fl_steer"},
+                 "links": {"front_left_wheel": "fl_wheel"}}
+        asset.update(over)
+        doc.setdefault("body", {})["asset"] = asset
+        return doc
+
+    def test_a_body_names_its_asset(self):
+        doc = self.with_asset()
+        specmod.validate(doc)
+        d = art.articulation_doc(specmod.effective(specmod.Spec(path=self.s.path, doc=doc),
+                                                   "carla-0.9.16"))
+        self.assertEqual(d["asset"]["usd"], "robots/car.usd")
+        self.assertEqual(d["asset"]["joints"], {"front_left_steer": "fl_steer"})
+        self.assertNotIn("asset", self.d)
+        self.assertNotEqual(d["physics_hash"], self.d["physics_hash"])   # its bytes are physics
+        for k in ("sha256", "licence", "joints"):
+            with self.assertRaisesRegex(specmod.SpecError, f"body.asset: missing {k}|sha256"):
+                specmod.validate(self.with_asset(**{k: ""}))
+        with self.assertRaisesRegex(specmod.SpecError, "64 hex"):
+            specmod.validate(self.with_asset(sha256="abc"))
+
     def test_the_steer_law(self):
         self.assertEqual(self.d["actuation"]["steer_law"], "ackermann")
         d = self.mushr_like(steer_law="tan")

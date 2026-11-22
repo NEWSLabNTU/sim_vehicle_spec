@@ -24,7 +24,7 @@ MOUNT_KEYS = ("x", "y", "z", "roll", "pitch", "yaw")
 
 # section -> (required keys, optional keys)
 SECTIONS = {
-    "body": ((), ("catalogue_model", "ground_clearance", "contact")),
+    "body": ((), ("catalogue_model", "ground_clearance", "contact", "asset")),
     "geometry": (("wheel_base", "wheel_tread", "wheel_radius", "wheel_width", "front_overhang",
                   "rear_overhang", "left_overhang", "right_overhang", "vehicle_height",
                   "max_steer_angle"), ()),
@@ -56,6 +56,13 @@ SECTIONS = {
     "articulation": ((), ("spin_drive", "undriven_spin_drive", "steer_drive",
                           "suspension_drive", "wheel_contact", "steer_law")),
 }
+# body.asset: the articulation asset the car is (scensim 094 P2: WheeledLab's MuSHR USD), which
+# an articulation consumer loads instead of building the generated body. `usd` is its path under
+# the consumer's asset root, `sha256` its bytes, `source` and `licence` where it comes from;
+# `joints` and `links` map the generated body's names to the asset's (every joint and every
+# wheel, upright and knuckle the consumer reads); the spec's geometry and masses are the
+# asset's, and the consumer checks them against it
+ASSET_KEYS = ("usd", "sha256", "source", "licence", "joints", "links")
 # articulation.*_drive: a joint drive. dc_motor: Isaac Lab's DCMotorCfg (an explicit actuator:
 # the velocity drive's torque clipped to the motor's torque-speed line, saturation_effort at
 # stall, zero at velocity_limit, and to effort_limit)
@@ -134,6 +141,7 @@ SUBSECTIONS = {
     ("tires", "front"): AXLE_TIRE_KEYS,
     ("tires", "rear"): AXLE_TIRE_KEYS,
     ("body", "contact"): CONTACT_KEYS,
+    ("body", "asset"): ASSET_KEYS,
     ("brakes", "abs"): ("enabled", "slip_release", "slip_reapply", "release_rate",
                         "apply_rate", "min_speed"),
     ("powertrain", "traction_control"): ("enabled", "slip_limit", "slip_reapply",
@@ -282,6 +290,13 @@ def validate(doc, where="spec"):
                  "it")
         if d.get("type") == "dc_motor" and k not in ("spin_drive", "undriven_spin_drive"):
             fail(f"articulation.{k}: a dc_motor drives a wheel's spin joint only")
+    asset = (doc.get("body") or {}).get("asset")
+    if asset is not None:
+        for k in ("usd", "sha256", "source", "licence", "joints", "links"):
+            if not asset.get(k):
+                fail(f"body.asset: missing {k}")
+        if not (isinstance(asset["sha256"], str) and len(asset["sha256"]) == 64):
+            fail("body.asset.sha256: the file's sha256, 64 hex digits")
     if "steer_law" in art and art["steer_law"] not in STEER_LAWS:
         fail(f"articulation.steer_law {art['steer_law']!r}: one of {', '.join(STEER_LAWS)}")
     _check_mount(doc["sensor_kit"]["mount"], "sensor_kit.mount", fail)
@@ -614,4 +629,7 @@ def physics_hash(spec):
     # names them carries the key: every other spec's fingerprint, and what it keys, unchanged
     if spec.doc.get("articulation"):
         doc["articulation"] = spec.doc["articulation"]
+    asset = (spec.doc.get("body") or {}).get("asset")
+    if asset:       # the asset the car is: its bytes are its physics
+        doc["body.asset"] = {"usd": asset["usd"], "sha256": asset["sha256"]}
     return hashlib.sha256(_canonical(doc).encode()).hexdigest()

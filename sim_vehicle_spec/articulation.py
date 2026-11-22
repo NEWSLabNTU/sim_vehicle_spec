@@ -186,7 +186,12 @@ def articulation_doc(spec):
                                "drive": spin}
     if body.get("contact"):
         links["chassis"]["contact"] = dict(body["contact"])
-    return {
+    extra = {}
+    if body.get("asset"):
+        # the car is this asset (094 P2): a consumer loads it, maps these names onto its
+        # joints and links, and checks the file's sha256 and its masses against the spec
+        extra["asset"] = dict(body["asset"])
+    return {**extra,
         "name": spec.name, "body": spec.body,
         "spec_hash": specmod.spec_hash(spec), "physics_hash": specmod.physics_hash(spec),
         "frame": "base_link: x forward, y left, z up; the rear axle's centre on the ground",

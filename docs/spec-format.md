@@ -178,7 +178,14 @@ zero at `velocity_limit`, and to `effort_limit`). It needs `saturation_effort`, 
 takes, and drives a spin joint only. WheeledLab's MuSHR (scensim 094 P2) is the case: a DC motor
 on its rear wheels, passive fronts, a rigid suspension and `tan` steering.
 
-A spec that has an `articulation:` section carries it in its `physics_hash`; one without has the
+`body.asset` names the articulation asset the car is, when a consumer should load it rather
+than build the generated body: `usd` (its path under the consumer's asset root), `sha256`,
+`source`, `licence`, and `joints` and `links`, maps from the generated body's names to the
+asset's. The spec's geometry and masses are then the asset's, and the consumer checks the file
+and its mass against them. The generated file carries the block as `asset:`.
+
+A spec that has an `articulation:` section, or a `body.asset`, carries it in its `physics_hash`
+(an asset as its `usd` and `sha256`); one without has the
 same fingerprint as before the section existed.
 
 ## Sensors

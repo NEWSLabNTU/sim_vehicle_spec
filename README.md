@@ -10,9 +10,9 @@ single autopilot owns. It depends on nothing but Python 3 and PyYAML (and Rust f
 
 | Path | What |
 |---|---|
-| `vehicles/` | The specs: `tesla_model3.yaml`, a Model 3 RWD on CARLA's `vehicle.tesla.model3` body |
+| `vehicles/` | The specs: `tesla_model3.yaml`, a Model 3 RWD on CARLA's `vehicle.tesla.model3` body; `mushr_nano.yaml`, the MuSHR Nano v2 (1/10 scale, no CARLA body: an empty `body.catalogue_model`, so its catalog entry has no `model3d` and it has no `carla_*` files; its body is WheeledLab's USD, `body.asset`) |
 | `sim_vehicle_spec/` | The library: `spec` (load, validate, and what a spec gives: `effective` (the spec as one of its simulator bodies), `box`, `axles`, `sensors`, `camera_intrinsics`, `spec_hash`, `physics_hash`), `emit` (how every repository writes generated files), `frames` (transforms), `gen` (this repository's outputs), `carla_physics` (`carla_physics.yaml` on a CARLA actor) |
-| `generated/<name>/carla_sensors.yaml` | The sensors acb_bridge spawns on CARLA, keyed by the URDF frame each is mounted at, with their blueprint attributes |
+| `generated/<name>/carla_sensors.yaml` | The sensors acb_bridge spawns on CARLA, keyed by the URDF frame each is mounted at, with their blueprint attributes; only for a car with a CARLA body |
 | `generated/<name>/carla_physics.yaml` | CARLA's physics for the car (`VehiclePhysicsControl` and the command lags); only for a spec with a body that has `carla.physics` |
 | `generated/<name>/carla_physics_1.0.yaml` | The same for CARLA 1.0's Chaos vehicle; only for a spec with a body that has `carla.physics_1_0` |
 | `catalogs/vehicles.xosc` | The SSv2 vehicle catalog: one entry per spec, at its default body |

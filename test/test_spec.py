@@ -405,6 +405,15 @@ class GeneratedTest(unittest.TestCase):
         self.assertIn('<Dimensions width="2.163" height="1.488" length="4.792" />', xosc)
         self.assertIn('positionX="3.005" wheelDiameter="0.74" trackWidth="1.667"', xosc)
 
+    def test_a_car_with_no_carla_body_has_no_carla_files(self):
+        """The MuSHR (scensim 094 P2): no catalogue_model, so no model3d in its catalog entry
+        and no carla_sensors.yaml or carla_physics*.yaml; its articulation is generated."""
+        out = gen.outputs(ROOT)
+        self.assertIn('<Vehicle name="mushr_nano" vehicleCategory="car">',
+                      out["catalogs/vehicles.xosc"])
+        self.assertEqual(sorted(p for p in out if p.startswith("generated/mushr_nano/")),
+                         ["generated/mushr_nano/articulation.yaml"])
+
     def test_the_catalog_declares_no_defaults(self):
         # In SSv2 an entry's declared default shadows the reference's assignment.
         xosc = gen.outputs(ROOT)["catalogs/vehicles.xosc"]

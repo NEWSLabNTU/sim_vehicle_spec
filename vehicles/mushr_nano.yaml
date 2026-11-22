@@ -1,0 +1,117 @@
+# WheeledLab's MuSHR nano v2, the 2WD drift car of its drift task (scensim roadmap 094 P2), as
+# stock simulates it. Source: WheeledLab (NEWSLabNTU's fork, branch isaaclab-3.0, a35060c;
+# BSD-3-Clause, "The Wheeled Lab Project Developers"):
+#   the body       source/wheeledlab_assets/data/Robots/UWRLL/mushr_nano_v2.usd
+#   the drives     source/wheeledlab_assets/wheeledlab_assets/hound.py, HOUND_SUS_2WD_ACTUATOR_CFG
+#   the action     source/wheeledlab_tasks/wheeledlab_tasks/common/actions.py, MushrRWDActionCfg
+# The geometry and masses are the USD's, read with pxr (it is in metres, whatever its
+# metersPerUnit says). Stock's action assumes other numbers (wheel radius 0.05, wheel base 0.325,
+# width 0.2): its own inconsistency, kept on the bypassed action path as stock has it (133,
+# 2026-11-22), not here. What stock does not say is marked "not stock's".
+spec_version: 2
+name: mushr_nano
+description: WheeledLab's MuSHR nano v2 (2WD, the drift task's car), roadmap 094 P2
+
+body:
+  catalogue_model: ""                  # no CARLA body: the catalog entry has no model3d
+  ground_clearance: 0.03       # m: not stock's (the USD's colliders are its wheels only)
+  # The car is stock's asset (133, 2026-11-22): engine B loads it, with the drives below, rather
+  # than the generated body, which this car's checks did not match within 5 % in its turns (its
+  # yaw 0.929 / 3.509 rad/s against stock's 0.982 / 3.015; the generator's measured cost, in
+  # scensim's batch-executor.md section 5). The geometry and masses here are the asset's.
+  asset:
+    usd: wheeledlab_assets/data/Robots/UWRLL/mushr_nano_v2.usd   # under WheeledLab's source/
+    sha256: f65756555120abb1155698813a67fd98e7a7beb8dba12101158a5cb049bc5488
+    source: "WheeledLab (github.com/NEWSLabNTU/WheeledLab, branch isaaclab-3.0, a35060c)"
+    licence: "BSD-3-Clause (The Wheeled Lab Project Developers)"
+    joints:
+      front_left_suspension: front_left_wheel_suspension
+      front_right_suspension: front_right_wheel_suspension
+      rear_left_suspension: back_left_wheel_suspension
+      rear_right_suspension: back_right_wheel_suspension
+      front_left_steer: front_left_wheel_steer
+      front_right_steer: front_right_wheel_steer
+      front_left_spin: front_left_wheel_throttle
+      front_right_spin: front_right_wheel_throttle
+      rear_left_spin: back_left_wheel_throttle
+      rear_right_spin: back_right_wheel_throttle
+    links:
+      chassis: base_link
+      front_left_wheel: front_left_wheel_link
+      front_right_wheel: front_right_wheel_link
+      rear_left_wheel: back_left_wheel_link
+      rear_right_wheel: back_right_wheel_link
+      front_left_upright: front_left_wheel_suspension_link
+      front_right_upright: front_right_wheel_suspension_link
+      rear_left_upright: back_left_wheel_suspension_link
+      rear_right_upright: back_right_wheel_suspension_link
+      front_left_knuckle: front_left_wheel_steer_link
+      front_right_knuckle: front_right_wheel_steer_link
+
+geometry:
+  wheel_base: 0.2965           # the USD's axles: front x 0.1385, rear x -0.158
+  wheel_tread: 0.23            # the USD's wheels at y +-0.115
+  wheel_radius: 0.0525         # the USD's wheel collider: radius 0.525 x scale 0.1
+  wheel_width: 0.0405          # the collider's height 1.35 x scale 0.03
+  front_overhang: 0.0669       # the USD's visual bounds, x -0.2345 to 0.2054
+  rear_overhang: 0.0765
+  left_overhang: 0.0           # the bounds' width 0.271 = tread + a wheel's width
+  right_overhang: 0.0
+  vehicle_height: 0.232        # the visual bounds' top
+  max_steer_angle: 0.488       # rad: stock's action scale (the bicycle angle at +-1)
+
+mirror:                        # none: Autoware's keys, at the body's sides
+  min_longitudinal_offset: 0.0
+  max_longitudinal_offset: 0.0
+  min_lateral_offset: 0.0
+  max_lateral_offset: 0.0
+  min_height_offset: 0.0
+  max_height_offset: 0.0
+
+inertia:
+  mass: 4.114                  # the USD's rigid bodies summed (stock adds 0.3 to 0.5 kg to
+                               # base_link at startup: an event, the task's, not the car's)
+  com_front_fraction: 0.5165   # the USD's centre of mass, 0.1531 m ahead of the rear axle
+  com_lateral: 0.0
+  com_height: 0.1017           # the USD's, from the ground at rest
+  inertia_box: [0.1016, 0.087, 0.1669]   # the box whose inertia is the asset's chassis links'
+                                         # as PhysX reads them (Ixx 0.0109, Iyy 0.0117,
+                                         # Izz 0.0055 kg m^2 about their centre)
+
+wheels:
+  mass: 0.111                  # the USD's wheel 0.1, suspension link 0.01, steer link 0.001
+
+tires:
+  friction: 1.0                # the USD's WheelMaterial_02 (stock randomises it to 0.3..0.5
+                               # at startup: the task's event)
+
+brakes:
+  max_brake_torque: 0.0        # MuSHR has no brake: the DC motor's damping slows the wheels
+
+powertrain:
+  model: ideal                 # until the task's component row names MuSHR's VESC
+  max_drive_torque: 0.5        # N m per wheel: stock's 2WD effort limit
+  drive_axle: rear
+
+steering:
+  ackermann: false             # stock steers tan(d) on both: articulation.steer_law
+
+suspension:
+  frequency: 30.0              # Hz: not stock's (its suspension is rigid: articulation.
+                               # suspension_drive); the generator's sag, unused
+  damping_ratio: 0.0
+  travel: 0.02                 # m: the USD's prismatic limits, +-0.01
+
+articulation:
+  steer_law: tan               # RCCarRWDAction: tan(d) to both front steer targets
+  steer_drive: {type: position, stiffness: 100.0, damping: 10.0, effort_limit: 3.2,
+                velocity_limit: 10.0, friction: 0.0}
+  spin_drive: {type: dc_motor, stiffness: 0.0, damping: 1000.0, effort_limit: 0.5,
+               saturation_effort: 1.05, velocity_limit: 450.0, friction: 0.0}
+  undriven_spin_drive: {type: effort, stiffness: 0.0, damping: 0.0, effort_limit: 0.0,
+                        friction: 0.0}
+  suspension_drive: {type: position, stiffness: 1.0e+8, damping: 0.0, friction: 0.5,
+                     target: 0.0}
+
+sensor_kit:
+  mount: {x: 0.0, y: 0.0, z: 0.2, roll: 0.0, pitch: 0.0, yaw: 0.0}

@@ -353,8 +353,12 @@ def as_bodies(spec):
 
 
 def carla_files(spec, header):
-    """{file name: content} of the spec's CARLA files, each from the body that calibrates it."""
+    """{file name: content} of the spec's CARLA files, each from the body that calibrates it;
+    none for a car with no CARLA body (body.catalogue_model empty: its catalog entry has no
+    model3d, and nothing spawns it on CARLA; scensim 094 P2's MuSHR)."""
     out = {}
+    if not spec.section("body").get("catalogue_model"):
+        return out
     for i, (body, e) in enumerate(as_bodies(spec)):
         if i == 0:
             out["carla_sensors.yaml"] = carla_sensors(e, header)

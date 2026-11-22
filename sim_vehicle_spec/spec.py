@@ -53,7 +53,7 @@ SECTIONS = {
     # would otherwise choose (sim_vehicle_spec.articulation names its defaults)
     # (scensim 094 P2: a car whose model is its articulation -- WheeledLab's MuSHR -- names its
     # undriven wheels' and suspension's drives and its steer law too)
-    "articulation": ((), ("spin_drive", "undriven_spin_drive", "steer_drive",
+    "articulation": ((), ("spin_drive", "undriven_spin_drive", "component_spin_drive", "steer_drive",
                           "suspension_drive", "wheel_contact", "steer_law")),
 }
 # body.asset: the articulation asset the car is (scensim 094 P2: WheeledLab's MuSHR USD), which
@@ -69,7 +69,8 @@ ASSET_KEYS = ("usd", "sha256", "source", "licence", "joints", "links")
 ARTICULATION_DRIVE_KEYS = ("type", "stiffness", "damping", "effort_limit", "velocity_limit",
                            "friction", "saturation_effort")
 ARTICULATION_DRIVE_TYPES = ("effort", "velocity", "position", "dc_motor")
-ARTICULATION_DRIVES = ("spin_drive", "undriven_spin_drive", "steer_drive", "suspension_drive")
+ARTICULATION_DRIVES = ("spin_drive", "undriven_spin_drive", "component_spin_drive", "steer_drive",
+                       "suspension_drive")
 # articulation.steer_law: what the front steer joints' targets are for a bicycle angle d.
 # ackermann: each wheel's Ackermann angle (steering.ackermann true, the default); parallel: d on
 # both; tan: tan(d) on both (WheeledLab's RCCarRWDAction, as written: a target of tan(d) rad)
@@ -152,6 +153,7 @@ SUBSECTIONS = {
     ("carla", "physics_1_0"): CARLA_PHYSICS_1_0_KEYS,
     ("articulation", "spin_drive"): ARTICULATION_DRIVE_KEYS,
     ("articulation", "undriven_spin_drive"): ARTICULATION_DRIVE_KEYS,
+    ("articulation", "component_spin_drive"): ARTICULATION_DRIVE_KEYS,
     ("articulation", "steer_drive"): ARTICULATION_DRIVE_KEYS,
     ("articulation", "suspension_drive"): ARTICULATION_DRIVE_KEYS + ("target",),
     ("articulation", "wheel_contact"): CONTACT_KEYS,
@@ -290,6 +292,8 @@ def validate(doc, where="spec"):
                  "it")
         if d.get("type") == "dc_motor" and k not in ("spin_drive", "undriven_spin_drive"):
             fail(f"articulation.{k}: a dc_motor drives a wheel's spin joint only")
+        if k == "component_spin_drive" and d.get("type") != "effort":
+            fail("articulation.component_spin_drive: an effort drive (the component's torque)")
     asset = (doc.get("body") or {}).get("asset")
     if asset is not None:
         for k in ("usd", "sha256", "source", "licence", "joints", "links"):

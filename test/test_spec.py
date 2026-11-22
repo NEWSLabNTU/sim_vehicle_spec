@@ -414,6 +414,18 @@ class GeneratedTest(unittest.TestCase):
         self.assertEqual(sorted(p for p in out if p.startswith("generated/mushr_nano/")),
                          ["generated/mushr_nano/articulation.yaml"])
 
+    def test_component_spin_drive_is_the_driven_joints_with_a_component(self):
+        """articulation.component_spin_drive: an effort drive on the driven spin joints only,
+        as their component_drive (094 P2's row a); another type is refused."""
+        doc = yaml.safe_load(gen.outputs(ROOT)["generated/mushr_nano/articulation.yaml"])
+        j = doc["joints"]
+        self.assertEqual(j["rear_left_spin"]["component_drive"]["type"], "effort")
+        self.assertNotIn("component_drive", j["front_left_spin"])
+        bad = yaml.safe_load((ROOT / "vehicles" / "mushr_nano.yaml").read_text())
+        bad["articulation"]["component_spin_drive"]["type"] = "velocity"
+        with self.assertRaisesRegex(specmod.SpecError, "component_spin_drive: an effort drive"):
+            specmod.validate(bad)
+
     def test_the_catalog_declares_no_defaults(self):
         # In SSv2 an entry's declared default shadows the reference's assignment.
         xosc = gen.outputs(ROOT)["catalogs/vehicles.xosc"]

@@ -29,7 +29,9 @@ in `choices:` of every file, so a difference from another model is named, not hi
   spec's damping ratio; q > 0 compresses it, and its drive targets minus the static sag, so the
   car rests at its design height (q = 0);
 - the wheel spins under an effort drive (the powertrain's torque, applied by the consumer) unless
-  the spec's `articulation.spin_drive` names another drive (a velocity drive, as an RC car's);
+  the spec's `articulation.spin_drive` names another drive (a velocity drive, as an RC car's), and
+  `articulation.component_spin_drive` the driven wheels' effort drive when a control component
+  is the motor instead (the joint's `component_drive`);
 - the steer is a position drive as stiff as a rack (the front tyre's largest scrub torque moves
   it 1 mrad), critically damped on the knuckle and wheel's inertia about z, unless
   `articulation.steer_drive` gives one;
@@ -184,6 +186,10 @@ def articulation_doc(spec):
         joints[f"{c}_spin"] = {"type": "revolute", "parent": parent, "child": f"{c}_wheel",
                                "origin": hub, "axis": [0, 1, 0], "driven": driven,
                                "drive": spin}
+        if driven and art.get("component_spin_drive"):
+            # the driven wheels' joint when a control component is the motor (094 P2's row a:
+            # the car's VESC gives the torque), where spin_drive models the motor itself
+            joints[f"{c}_spin"]["component_drive"] = dict(art["component_spin_drive"])
     if body.get("contact"):
         links["chassis"]["contact"] = dict(body["contact"])
     extra = {}
@@ -231,7 +237,9 @@ def articulation_doc(spec):
             ("spin drive: the spec's articulation.spin_drive" if art.get("spin_drive") else
              "spin drive: effort (the consumer applies the powertrain's and brakes' torque)")
             + ("; undriven wheels: articulation.undriven_spin_drive"
-               if art.get("undriven_spin_drive") else ""),
+               if art.get("undriven_spin_drive") else "")
+            + ("; with a control component as the motor: articulation.component_spin_drive"
+               if art.get("component_spin_drive") else ""),
             f"steer law: {_steer_law(spec)}"
             + (" (the spec's articulation.steer_law)" if art.get("steer_law") else
                " (steering.ackermann)"),

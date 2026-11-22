@@ -40,7 +40,7 @@ SECTIONS = {
                    ("max_drive_torque", "component", "params", "drive_axle", "front_drive_share", "gear_ratio", "motor_peak_torque",
                     "motor_peak_power", "motor_max_rpm", "motor_time_constant",
                     "regen_max_torque", "regen_max_power", "regen_fade_speeds",
-                    "traction_control", "differential")),
+                    "traction_control", "regen_slip_control", "differential")),
     "resistance": ((), ("rolling_coefficient", "drag_coefficient", "frontal_area",
                         "air_density")),
     "steering": ((), ("ackermann", "time_constant", "rate_limit")),
@@ -169,6 +169,12 @@ SUBSECTIONS = {
     ("brakes", "estimator"): ("slip_offset",),
     ("powertrain", "traction_control"): ("enabled", "slip_limit", "slip_reapply",
                                          "release_rate", "apply_rate"),
+    # sim_vehicle_ecu's regen slip control, by its fields' names without regen_ (scensim issue
+    # 106: the calibration read it, but no spec could give it)
+    ("powertrain", "regen_slip_control"): ("enabled", "slip_release", "slip_reapply",
+                                           "runaway_slip", "runaway_decel", "runaway_deficit",
+                                           "slip_growth", "spin_settle", "release_rate",
+                                           "apply_rate", "grip_share", "mu_recover_rate"),
     ("powertrain", "differential"): ("type", "preload", "power_lock", "coast_lock"),
     ("isaac", "physx"): PHYSX_KEYS,
     ("carla", "physics"): CARLA_PHYSICS_KEYS,

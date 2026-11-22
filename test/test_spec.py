@@ -632,6 +632,7 @@ class OnboardComputerTest(unittest.TestCase):
     PERTURB = {("brakes", "abs"): {"enabled": True, "slip_release": 0.33, "slip_reapply": 0.01,
                                    "release_rate": 3.0, "apply_rate": 2.0, "min_speed": 0.7},
                ("brakes", "estimator"): {"slip_offset": 2.5},
+               ("powertrain", "regen_slip_control"): {"slip_release": 0.4, "grip_share": 0.5},
                ("powertrain", "traction_control"): {"enabled": False, "slip_limit": 0.4,
                                                     "slip_reapply": 0.2, "release_rate": 1.0,
                                                     "apply_rate": 1.0}}

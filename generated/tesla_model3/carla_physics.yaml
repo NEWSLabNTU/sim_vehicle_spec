@@ -1,11 +1,11 @@
-# Generated from vehicles/tesla_model3.yaml (spec_hash 89cc738fd55929edd0e260121a80bfdde209563d8d7a97648505f557d9685f1e) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
+# Generated from vehicles/tesla_model3.yaml (spec_hash 4d2bbaff65967b5aeb6f9fd35e0fc9b8b6c575824ad57158c9f9b68db13a5d76) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
 # CARLA's physics for the car (VehiclePhysicsControl): applied to the ego by the CARLA
 # world server after the spawn (with SSv2) or by acb_bridge on attach (standalone), and
 # read back by acb_bridge. SI units; wheels front left, front right, rear left, rear
 # right; center_of_mass is CARLA's nudge of the body's own (CARLA's axes, y right).
 # Not modelled by CARLA, named here: the rear-wheel drive (CARLA drives its 4W
 # differential), ABS, regen and traction control, rolling resistance.
-spec_hash: 89cc738fd55929edd0e260121a80bfdde209563d8d7a97648505f557d9685f1e
+spec_hash: 4d2bbaff65967b5aeb6f9fd35e0fc9b8b6c575824ad57158c9f9b68db13a5d76
 physics_hash: 47a1043b8cc7f790c2fc2245ae6ffdfe3d5fc4c6aa761cff0f3a30fdadaccf8f
 blueprint: vehicle.tesla.model3
 vehicle:

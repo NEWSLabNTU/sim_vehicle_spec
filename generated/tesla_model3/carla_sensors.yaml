@@ -1,4 +1,4 @@
-# Generated from vehicles/tesla_model3.yaml (spec_hash 89cc738fd55929edd0e260121a80bfdde209563d8d7a97648505f557d9685f1e) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
+# Generated from vehicles/tesla_model3.yaml (spec_hash 4d2bbaff65967b5aeb6f9fd35e0fc9b8b6c575824ad57158c9f9b68db13a5d76) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
 # The sensors acb_bridge spawns on CARLA, keyed by the URDF frame each is mounted at
 # (the mounts come from Autoware's robot_description), with their blueprint attributes.
 # A semantic lidar's intensity is reflectance[its tag] x cos(incidence), clamped to 0-255;
@@ -7,7 +7,7 @@
 # 8=TrafficSigns, 9=Vegetation, 10=Terrain, 11=Sky, 12=Pedestrians, 13=Rider, 14=Car,
 # 15=Truck, 16=Bus, 17=Train, 18=Motorcycle, 19=Bicycle, 20=Static, 21=Dynamic, 22=Other,
 # 23=Water, 24=RoadLines, 25=Ground, 26=Bridge, 27=RailTrack, 28=GuardRail
-spec_hash: 89cc738fd55929edd0e260121a80bfdde209563d8d7a97648505f557d9685f1e
+spec_hash: 4d2bbaff65967b5aeb6f9fd35e0fc9b8b6c575824ad57158c9f9b68db13a5d76
 vehicle: {blueprint: vehicle.tesla.model3}
 sensors:
   top:

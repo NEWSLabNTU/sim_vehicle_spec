@@ -108,6 +108,7 @@ footprint and height these give.
 | `powertrain.regen_max_torque`, `regen_max_power` | same | `ev`: regeneration's limits, N m at the motor and W |
 | `powertrain.regen_fade_speeds` | `regen_fade_low`, `regen_fade_high` | `ev`: `[low, high]` m/s, no regen at or below `low`, full at or above `high` |
 | `powertrain.traction_control.{enabled, slip_limit, slip_reapply, release_rate, apply_rate}` | `tc_*` | `ev`: the motor torque factor on the driven wheels' largest slip, as ABS |
+| `powertrain.regen_slip_control.{enabled, slip_release, slip_reapply, runaway_slip, runaway_decel, runaway_deficit, slip_growth, spin_settle, release_rate, apply_rate, grip_share, mu_recover_rate}` | `regen_*` (`enabled`: `regen_slip_control`) | `ev`: regen given up on the driven wheels' braking slip, before the friction brakes' ABS; `slip_release` below ABS's so it acts first |
 | `resistance.rolling_coefficient`, `drag_coefficient`, `frontal_area`, `air_density` | same | the road load, applied to the body by the physics (all models): Crr m g, rho Cd A v^2 / 2. No section: no road load |
 | `steering.ackermann` | `ackermann` | split the bicycle angle into Ackermann wheel angles (default true) |
 | `steering.time_constant`, `rate_limit` | `steer_time_constant`, `steer_rate_limit` | actuator lag, rate limit; 0: none |

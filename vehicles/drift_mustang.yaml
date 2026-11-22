@@ -74,6 +74,9 @@ powertrain:
   regen_max_power: 60000.0
   regen_fade_speeds: [1.0, 3.0]
   traction_control: {enabled: false, slip_limit: 0.25, slip_reapply: 0.15, release_rate: 20.0, apply_rate: 5.0}
+  # sim_vehicle_ecu's regen slip release until scensim issue 106 moved its default to the Model 3's
+  # 0.15: written so this car is unchanged (not tuned for it)
+  regen_slip_control: {slip_release: 0.25}
   # A spooled rear axle: both rear wheels at one speed, as drift builds weld or lock theirs
   differential: {type: locked}
 

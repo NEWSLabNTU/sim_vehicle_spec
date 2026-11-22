@@ -106,6 +106,9 @@ powertrain:
   regen_max_power: 60000.0    # W
   regen_fade_speeds: [1.0, 3.0]   # m/s: no regen at or below the first, full at or above the second
   traction_control: {enabled: true, slip_limit: 0.25, slip_reapply: 0.15, release_rate: 20.0, apply_rate: 5.0}
+  # Regen slip control: regen is given up past slip_release on the rear wheels, before ABS's
+  # 0.2 acts (scensim issue 106); the rest of its fields are sim_vehicle_ecu's defaults
+  regen_slip_control: {slip_release: 0.15}
 
 # Road loads, applied to the body as a force (whatever the powertrain): rolling resistance
 # Crr m g and aerodynamic drag rho Cd A v^2 / 2. The powertrains' feedforward includes them.
@@ -361,6 +364,7 @@ provenance:
   powertrain.regen_max_torque: {assumed: true, basis: "Tesla quoted 0.2 g maximum regen deceleration for Model 3 (0.3 g in Track Mode; Electrek 2018); 0.2 g x 1760 kg x 0.334 m / 9.03 (the same on every body: radius over reduction is the real car's)"}
   powertrain.regen_max_power: {assumed: true, basis: "owner reports of ~60-70 kW peak regen for Model 3 (no Tesla figure); 60 kW"}
   powertrain.regen_fade_speeds: {assumed: true, basis: "regen fades out at walking pace, where the friction brakes (hold) take over"}
+  powertrain.regen_slip_control: {assumed: true, basis: "tuned in Isaac (scensim issue 106, 2026-11-23: aib.steptest regen_60 and regen_30 on tyre friction 0.3 and 0.2): at 0.25, above ABS's 0.2 since issue 100, ABS acted first on a regen-only stop at 0.2 and its abs_event removed regen for the stop; at 0.15 regen slip control acted first, ABS never did, and regen held about 1400 N at the request's 1.5 m/s^2; dry runs identical"}
   powertrain.traction_control: {assumed: true, basis: "slip limit just past the PhysX tire's peak under drive; motor torque cut fast (the inverter acts in ms)"}
   resistance.rolling_coefficient: {assumed: true, basis: "low-rolling-resistance OEM tires (Model 3: Michelin Primacy MXM4 class), Crr 0.008-0.010"}
   resistance.drag_coefficient: {basis: "Tesla: Cd 0.23 for Model 3"}

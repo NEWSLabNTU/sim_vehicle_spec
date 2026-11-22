@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated from vehicles/drift_mustang.yaml (spec_hash 65f1ba86a28fd88003747a5fb8a5ab8df0ab11c55e778a4b7ea1f9ab553c40ae) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate. -->
+<!-- Generated from vehicles/drift_mustang.yaml (spec_hash 07003bd3a4de860212e5b48770fed824450208867f8363644a81f5d54229736c) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate. -->
 <!-- Generated from vehicles/mushr_nano.yaml (spec_hash 98040b92897a8bd725c322f20851151a321bfa47a7328adb094ff05a2996d492) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate. -->
-<!-- Generated from vehicles/tesla_model3.yaml (spec_hash 89cc738fd55929edd0e260121a80bfdde209563d8d7a97648505f557d9685f1e) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate. -->
+<!-- Generated from vehicles/tesla_model3.yaml (spec_hash 4d2bbaff65967b5aeb6f9fd35e0fc9b8b6c575824ad57158c9f9b68db13a5d76) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate. -->
 <!-- The simulated cars as SSv2 vehicles: one entry per spec, its body box and axles in the
      spec's base_link (the rear axle centre on the ground), model3d its body. A scenario refers to
      an entry with CatalogReference and assigns maxSpeed, maxAcceleration, maxDeceleration and
@@ -21,7 +21,7 @@
         <RearAxle maxSteering="0.0" positionX="0.0" wheelDiameter="0.64" trackWidth="1.586" positionZ="0.32" />
       </Axles>
       <Properties>
-        <Property name="scensim.spec_hash" value="65f1ba86a28fd88003747a5fb8a5ab8df0ab11c55e778a4b7ea1f9ab553c40ae" />
+        <Property name="scensim.spec_hash" value="07003bd3a4de860212e5b48770fed824450208867f8363644a81f5d54229736c" />
       </Properties>
     </Vehicle>
     <Vehicle name="mushr_nano" vehicleCategory="car">
@@ -49,7 +49,7 @@
         <RearAxle maxSteering="0.0" positionX="0.0" wheelDiameter="0.74" trackWidth="1.667" positionZ="0.37" />
       </Axles>
       <Properties>
-        <Property name="scensim.spec_hash" value="89cc738fd55929edd0e260121a80bfdde209563d8d7a97648505f557d9685f1e" />
+        <Property name="scensim.spec_hash" value="4d2bbaff65967b5aeb6f9fd35e0fc9b8b6c575824ad57158c9f9b68db13a5d76" />
       </Properties>
     </Vehicle>
   </Catalog>

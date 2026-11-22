@@ -67,13 +67,20 @@ ASSET_KEYS = ("usd", "sha256", "source", "licence", "joints", "links", "spawn")
 # Lab ArticulationCfg's articulation and rigid-body properties): an asset's config is part of
 # the car, as its USD is (scensim 094 P3: the MuSHR's USD authors 32 position and 1 velocity
 # solver iterations, its config 4 and 0, and a consumer that read the USD alone ran 8 times the
-# iterations). Names as Isaac Lab's ArticulationRootPropertiesCfg and RigidBodyPropertiesCfg
-# have them (max_angular_velocity in deg/s, as there); each is optional
-SPAWN_KEYS = {"solver_position_iteration_count": int, "solver_velocity_iteration_count": int,
-              "sleep_threshold": float, "stabilization_threshold": float,
-              "rigid_body_enabled": bool, "max_linear_velocity": float,
-              "max_angular_velocity": float, "max_depenetration_velocity": float,
-              "max_contact_impulse": float, "enable_gyroscopic_forces": bool}
+# iterations). Keyed by the USD attribute each sets, PhysX's schema names, in the USD's units
+# (maxAngularVelocity in deg/s): the asset's own vocabulary, which a USD-only consumer reads and
+# no library's config renames (241's review); the articulation root's on the prim with
+# PhysxArticulationAPI, a rigid body's on every rigid body. Each is optional
+SPAWN_KEYS = {"physxArticulation:solverPositionIterationCount": int,
+              "physxArticulation:solverVelocityIterationCount": int,
+              "physxArticulation:sleepThreshold": float,
+              "physxArticulation:stabilizationThreshold": float,
+              "physics:rigidBodyEnabled": bool,
+              "physxRigidBody:maxLinearVelocity": float,
+              "physxRigidBody:maxAngularVelocity": float,
+              "physxRigidBody:maxDepenetrationVelocity": float,
+              "physxRigidBody:maxContactImpulse": float,
+              "physxRigidBody:enableGyroscopicForces": bool}
 # articulation.*_drive: a joint drive. dc_motor: Isaac Lab's DCMotorCfg (an explicit actuator:
 # the velocity drive's torque clipped to the motor's torque-speed line, saturation_effort at
 # stall, zero at velocity_limit, and to effort_limit)

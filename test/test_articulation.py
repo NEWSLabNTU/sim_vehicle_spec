@@ -193,22 +193,24 @@ class ArticulationTest(unittest.TestCase):
         """094 P3: the asset's config (its solver iterations, ...) travels with it, is checked,
         and moves the physics hash; a body without it is unchanged."""
         plain = self.with_asset()
-        doc = self.with_asset(spawn={"solver_position_iteration_count": 4,
-                                     "solver_velocity_iteration_count": 0,
-                                     "enable_gyroscopic_forces": True,
-                                     "max_angular_velocity": 100000.0})
+        doc = self.with_asset(spawn={"physxArticulation:solverPositionIterationCount": 4,
+                                     "physxArticulation:solverVelocityIterationCount": 0,
+                                     "physxRigidBody:enableGyroscopicForces": True,
+                                     "physxRigidBody:maxAngularVelocity": 100000.0})
         specmod.validate(doc)
         eff = lambda d: art.articulation_doc(specmod.effective(       # noqa: E731
             specmod.Spec(path=self.s.path, doc=d), "carla-0.9.16"))
         d, d0 = eff(doc), eff(plain)
-        self.assertEqual(d["asset"]["spawn"]["solver_position_iteration_count"], 4)
+        self.assertEqual(d["asset"]["spawn"]["physxArticulation:solverPositionIterationCount"], 4)
         self.assertNotIn("spawn", d0["asset"])
         self.assertNotEqual(d["physics_hash"], d0["physics_hash"])
-        for bad, msg in (({"solver_iterations": 4}, "not one of"),
-                         ({"solver_position_iteration_count": 4.5}, "not an integer"),
-                         ({"solver_velocity_iteration_count": -1}, "not an integer >= 0"),
-                         ({"enable_gyroscopic_forces": 1}, "not a boolean"),
-                         ({"sleep_threshold": "low"}, "not a number")):
+        for bad, msg in (({"solver_position_iteration_count": 4}, "not one of"),   # Isaac Lab's
+                         ({"physxArticulation:solverPositionIterationCount": 4.5},
+                          "not an integer"),
+                         ({"physxArticulation:solverVelocityIterationCount": -1},
+                          "not an integer >= 0"),
+                         ({"physxRigidBody:enableGyroscopicForces": 1}, "not a boolean"),
+                         ({"physxArticulation:sleepThreshold": "low"}, "not a number")):
             with self.assertRaisesRegex(specmod.SpecError, msg):
                 specmod.validate(self.with_asset(spawn=bad))
 

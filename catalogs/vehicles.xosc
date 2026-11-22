@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Generated from vehicles/drift_mustang.yaml (spec_hash 65f1ba86a28fd88003747a5fb8a5ab8df0ab11c55e778a4b7ea1f9ab553c40ae) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate. -->
-<!-- Generated from vehicles/mushr_nano.yaml (spec_hash 9f90302d4eacdb61bbbae2eeca9b9ad8ec83c33efe9fc35a649183ba34722f98) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate. -->
+<!-- Generated from vehicles/mushr_nano.yaml (spec_hash cb73d8e54726b95e9ad77f48404da29cdbd0b488b1368ddd994949543a747338) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate. -->
 <!-- Generated from vehicles/tesla_model3.yaml (spec_hash dffb1d3df1f4ae564235a87c84c1a5a4b402f4d41d265186976561b96d31273c) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate. -->
 <!-- The simulated cars as SSv2 vehicles: one entry per spec, its body box and axles in the
      spec's base_link (the rear axle centre on the ground), model3d its body. A scenario refers to
@@ -35,7 +35,7 @@
         <RearAxle maxSteering="0.0" positionX="0.0" wheelDiameter="0.105" trackWidth="0.23" positionZ="0.052" />
       </Axles>
       <Properties>
-        <Property name="scensim.spec_hash" value="9f90302d4eacdb61bbbae2eeca9b9ad8ec83c33efe9fc35a649183ba34722f98" />
+        <Property name="scensim.spec_hash" value="cb73d8e54726b95e9ad77f48404da29cdbd0b488b1368ddd994949543a747338" />
       </Properties>
     </Vehicle>
     <Vehicle name="tesla_model3" vehicleCategory="car" model3d="vehicle.tesla.model3">

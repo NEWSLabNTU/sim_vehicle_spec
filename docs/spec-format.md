@@ -38,6 +38,7 @@ Frame: base_link, the rear axle centre on the ground, x forward, y left, z up.
 | `sensor_kit` | yes | `mount`: base_link -> sensor_kit_base_link |
 | `sensors` | no | name -> sensor, below |
 | `provenance` | no | where numbers come from, below |
+| `autoware_car` | no | `false`: not an Autoware car (an RL policy's, as scensim 094 P2's MuSHR): autoware_sim_vehicle builds it no packages and reports it skipped; absent, it is an Autoware car, which needs `sensors` |
 
 ## Bodies
 

@@ -426,6 +426,14 @@ class GeneratedTest(unittest.TestCase):
         with self.assertRaisesRegex(specmod.SpecError, "component_spin_drive: an effort drive"):
             specmod.validate(bad)
 
+    def test_autoware_car_false_opts_a_car_out_and_nothing_else_is_taken(self):
+        self.assertFalse(specmod.autoware_car(specmod.load(ROOT / "vehicles" / "mushr_nano.yaml")))
+        self.assertTrue(specmod.autoware_car(specmod.load(ROOT / "vehicles" / "tesla_model3.yaml")))
+        doc = yaml.safe_load((ROOT / "vehicles" / "mushr_nano.yaml").read_text())
+        doc["autoware_car"] = True
+        with self.assertRaisesRegex(specmod.SpecError, "false opts the car out"):
+            specmod.validate(doc)
+
     def test_the_catalog_declares_no_defaults(self):
         # In SSv2 an entry's declared default shadows the reference's assignment.
         xosc = gen.outputs(ROOT)["catalogs/vehicles.xosc"]

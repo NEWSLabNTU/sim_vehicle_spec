@@ -106,7 +106,10 @@ CARLA_SEMANTIC_TAGS = ("NONE", "Roads", "Sidewalks", "Buildings", "Walls", "Fenc
                        "Pedestrians", "Rider", "Car", "Truck", "Bus", "Train", "Motorcycle",
                        "Bicycle", "Static", "Dynamic", "Other", "Water", "RoadLines", "Ground",
                        "Bridge", "RailTrack", "GuardRail")
+# autoware_car: false opts a car out of Autoware (autoware_sim_vehicle builds it no packages; scensim
+# 094 P2's MuSHR, a car an RL policy drives); absent, the car is an Autoware car
 TOP = {"spec_version", "name", "description", "sensors", "provenance", "bodies", "simulators",
+       "autoware_car",
        *SECTIONS}
 # bodies.<name>: a simulator's body for the car (roadmap 083). The spec's own geometry is the
 # real car's; a simulator drives the body its asset has, and a body says how it differs: its
@@ -253,6 +256,9 @@ def validate(doc, where="spec"):
     unknown = set(doc) - TOP
     if unknown:
         fail(f"unknown key(s) {sorted(unknown)}")
+    if "autoware_car" in doc and doc["autoware_car"] is not False:
+        fail(f"autoware_car: {doc['autoware_car']!r}: false opts the car out of Autoware; leave "
+             "it out for an Autoware car")
     for section, (required, optional) in SECTIONS.items():
         body = doc.get(section)
         if body is None:
@@ -637,3 +643,8 @@ def physics_hash(spec):
     if asset:       # the asset the car is: its bytes are its physics
         doc["body.asset"] = {"usd": asset["usd"], "sha256": asset["sha256"]}
     return hashlib.sha256(_canonical(doc).encode()).hexdigest()
+
+
+def autoware_car(spec) -> bool:
+    """Whether the car is an Autoware car: unless its spec says `autoware_car: false`."""
+    return (spec.source or spec.doc).get("autoware_car", True) is not False

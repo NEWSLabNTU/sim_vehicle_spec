@@ -10,6 +10,7 @@
 # 2026-11-22), not here. What stock does not say is marked "not stock's".
 spec_version: 2
 name: mushr_nano
+autoware_car: false            # an RL policy drives it (094 P2): no Autoware packages, no sensors
 description: WheeledLab's MuSHR nano v2 (2WD, the drift task's car), roadmap 094 P2
 
 body:

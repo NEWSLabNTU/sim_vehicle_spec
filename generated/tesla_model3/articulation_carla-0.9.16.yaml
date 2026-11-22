@@ -1,8 +1,8 @@
-# Generated from vehicles/tesla_model3.yaml (spec_hash dffb1d3df1f4ae564235a87c84c1a5a4b402f4d41d265186976561b96d31273c) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
+# Generated from vehicles/tesla_model3.yaml (spec_hash 89cc738fd55929edd0e260121a80bfdde209563d8d7a97648505f557d9685f1e) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
 name: tesla_model3
 body: carla-0.9.16
-spec_hash: dffb1d3df1f4ae564235a87c84c1a5a4b402f4d41d265186976561b96d31273c
-physics_hash: 33635ad5c8611570ffbb9a00b495df5bdc1be06f8f6227280a4c34033acdc267
+spec_hash: 89cc738fd55929edd0e260121a80bfdde209563d8d7a97648505f557d9685f1e
+physics_hash: 47a1043b8cc7f790c2fc2245ae6ffdfe3d5fc4c6aa761cff0f3a30fdadaccf8f
 frame: 'base_link: x forward, y left, z up; the rear axle''s centre on the ground'
 links:
   chassis:

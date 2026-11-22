@@ -103,6 +103,11 @@ tires:
 
 brakes:
   max_brake_torque: 0.0        # MuSHR has no brake: the DC motor's damping slows the wheels
+  # The brake module's tuning as sim_vehicle_ecu's defaults gave it until scensim issue 100 moved
+  # those defaults to the Model 3's (2026-11-22): written here so the move leaves this car as it
+  # was. Not tuned for it (it has no brake torque to modulate).
+  abs: {enabled: true, slip_release: 0.25, slip_reapply: 0.15, release_rate: 8.0, apply_rate: 4.0, min_speed: 1.5}
+  estimator: {slip_offset: 4.0}
 
 powertrain:
   model: ideal                 # until the task's component row names MuSHR's VESC
@@ -117,6 +122,16 @@ suspension:
                                # suspension_drive); the generator's sag, unused
   damping_ratio: 0.0
   travel: 0.02                 # m: the USD's prismatic limits, +-0.01
+
+# Its PhysX vehicle (aib's rig, an Isaac seat): the values aib's defaults gave it until scensim
+# issue 100 moved those defaults to the Model 3's tuning (2026-11-22). Written here so that move
+# leaves this car as it was; they were not tuned for it.
+isaac:
+  physx:
+    min_active_slip_denominator: 4.0
+    min_passive_slip_denominator: 4.0
+    min_lateral_slip_denominator: 1.0
+    lateral_sticky_tire_damping: 200.0
 
 articulation:
   steer_law: tan               # RCCarRWDAction: tan(d) to both front steer targets

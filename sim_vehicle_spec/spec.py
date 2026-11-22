@@ -35,7 +35,7 @@ SECTIONS = {
     "tires": (("friction",), ("lat_stiff_max_load", "lat_stiff_value", "long_stiff_value",
                               "friction_vs_slip", "front", "rear")),
     "brakes": (("max_brake_torque",), ("hold_brake_torque", "distribution", "dead_time",
-                                        "time_constant", "abs")),
+                                        "time_constant", "abs", "estimator")),
     "powertrain": (("model",),
                    ("max_drive_torque", "component", "params", "drive_axle", "front_drive_share", "gear_ratio", "motor_peak_torque",
                     "motor_peak_power", "motor_max_rpm", "motor_time_constant",
@@ -166,6 +166,7 @@ SUBSECTIONS = {
     ("body", "asset"): ASSET_KEYS,
     ("brakes", "abs"): ("enabled", "slip_release", "slip_reapply", "release_rate",
                         "apply_rate", "min_speed"),
+    ("brakes", "estimator"): ("slip_offset",),
     ("powertrain", "traction_control"): ("enabled", "slip_limit", "slip_reapply",
                                          "release_rate", "apply_rate"),
     ("powertrain", "differential"): ("type", "preload", "power_lock", "coast_lock"),
@@ -303,6 +304,9 @@ def validate(doc, where="spec"):
             extra = set(v) - set(keys)
             if extra:
                 fail(f"{section}.{k}: unknown key(s) {sorted(extra)}")
+    so = ((doc.get("brakes") or {}).get("estimator") or {}).get("slip_offset")
+    if so is not None and (isinstance(so, bool) or not isinstance(so, (int, float)) or so <= 0):
+        fail(f"brakes.estimator.slip_offset: {so!r} is not a speed > 0 (m/s)")
     art = doc.get("articulation") or {}
     for k in ARTICULATION_DRIVES:
         d = art.get(k)
@@ -643,6 +647,16 @@ UNHASHED = ("description", "provenance")
 # What drives the car: the pedal maps are measured against these (docs/spec-format.md).
 PHYSICS_SECTIONS = ("geometry", "inertia", "wheels", "tires", "brakes", "powertrain",
                     "resistance", "steering", "suspension")
+# The car's onboard computer's tuning, inside those sections: what sim_vehicle_ecu reads (ABS,
+# its slip estimate, stability control, traction control, regen slip control). On CARLA the
+# car runs no computer of ours: the world server turns CARLA's own ABS and traction control off
+# and reads none of these, nor does acb, and carla_physics*.yaml holds none of them. So they
+# are not in physics_hash, which keys CARLA's pedal maps, and an ECU retune does not ask for
+# CARLA's maps to be measured again; isaac_physics_hash, what the car is on Isaac, has them
+# (scensim issue 100, 2026-11-22: a step's ABS retune moved physics_hash while every CARLA
+# output stayed byte for byte the same).
+ONBOARD_COMPUTER = (("brakes", "abs"), ("brakes", "estimator"), ("brakes", "esc"),
+                    ("powertrain", "traction_control"), ("powertrain", "regen_slip_control"))
 
 
 def _canonical(value):
@@ -666,6 +680,9 @@ def physics_hash(spec):
         raise SpecError(f"{spec.path}: physics_hash is a body's: spec.effective(spec, body), "
                         f"body one of {', '.join(spec.doc['bodies'])}")
     doc = {k: spec.doc.get(k) for k in PHYSICS_SECTIONS}
+    for sec, key in ONBOARD_COMPUTER:      # the onboard computer's: not CARLA's physics
+        if isinstance(doc.get(sec), dict) and key in doc[sec]:
+            doc[sec] = {k: v for k, v in doc[sec].items() if k != key}
     doc["carla.physics"] = spec.section("carla").get("physics")
     # an articulation's drives are its car's physics (scensim 094 P2), but only a spec that
     # names them carries the key: every other spec's fingerprint, and what it keys, unchanged
@@ -684,12 +701,26 @@ def autoware_car(spec) -> bool:
     return (spec.source or spec.doc).get("autoware_car", True) is not False
 
 
+def onboard_computer(spec):
+    """The onboard computer's tuning (ONBOARD_COMPUTER), as `section.key` -> its value, for
+    what the spec gives."""
+    out = {}
+    for sec, key in ONBOARD_COMPUTER:
+        v = (spec.doc.get(sec) or {}).get(key)
+        if v is not None:
+            out[f"{sec}.{key}"] = v
+    return out
+
+
 def isaac_physics_hash(spec):
     """The fingerprint of what drives the car on Isaac: physics_hash's mapping, plus `isaac`
-    (the PhysX vehicle's solver settings: substeps, slip denominators, sticky tyre), which
-    physics_hash leaves out so that CARLA's artefacts do not move for an Isaac-only change.
+    (the PhysX vehicle's solver settings: substeps, slip denominators, sticky tyre) and the
+    onboard computer's tuning (onboard_computer: what sim_vehicle_ecu runs on Isaac and CARLA
+    never runs), which physics_hash leaves out so that CARLA's artefacts do not move for an
+    Isaac-only change.
     aib's rig records it, and the Isaac references (aib.steptest, vehicle_check on Isaac, the
     T3 Isaac suites) write it into their results, so a comparison across two says so (scensim
     issue 100). A body's, as physics_hash: the body Isaac runs (`simulators.isaac`)."""
-    doc = {"physics_hash": physics_hash(spec), "isaac": spec.doc.get("isaac")}
+    doc = {"physics_hash": physics_hash(spec), "isaac": spec.doc.get("isaac"),
+           "onboard": onboard_computer(spec)}
     return hashlib.sha256(_canonical(doc).encode()).hexdigest()

@@ -6,7 +6,7 @@
 # Not modelled by CARLA, named here: the rear-wheel drive (CARLA drives its 4W
 # differential), ABS, regen and traction control, rolling resistance.
 spec_hash: 65f1ba86a28fd88003747a5fb8a5ab8df0ab11c55e778a4b7ea1f9ab553c40ae
-physics_hash: 933597f525ffc121a9d64cd055d27330ceb44857c1a54013caf847b07731092c
+physics_hash: 87a96d294cf5e80b4465c202e44dab77f950b17b1b88dd7ecf9b381aa82bfe16
 blueprint: vehicle.ford.mustang
 vehicle:
   mass: 1450.0

@@ -83,7 +83,10 @@ brakes:
   time_constant: 0.06         # s
   # ABS (ev): each wheel's pressure released while its slip is past slip_release and
   # reapplied once it is back within slip_reapply; off below min_speed (m/s).
-  abs: {enabled: true, slip_release: 0.25, slip_reapply: 0.15, release_rate: 8.0, apply_rate: 4.0, min_speed: 1.5}
+  abs: {enabled: true, slip_release: 0.2, slip_reapply: 0.05, release_rate: 8.0, apply_rate: 4.0, min_speed: 1.5}
+  # The brake module's slip estimate: each wheel's slip over |v| + slip_offset (m/s). The car's
+  # own computer, independent of the simulator's tyre: ABS and TC are tuned against it.
+  estimator: {slip_offset: 4.0}
 
 powertrain:
   # The seam (docs/design.md, "Powertrain"): `ideal` realizes Autoware's acceleration as
@@ -125,20 +128,27 @@ suspension:
 isaac:
   physx:
     # The wheel's spin is stiff against the tire: at 1 substep per 1/60 s braking went unstable
-    # and locked the wheels (csb roadmap 043). 8 substeps at every speed and a 4 m/s active
-    # slip denominator track the request.
+    # and locked the wheels (csb roadmap 043). 8 substeps at every speed track the request.
     substeps: 8
     substep_threshold_speed: 5.0
-    min_active_slip_denominator: 4.0
-    min_passive_slip_denominator: 4.0
-    min_lateral_slip_denominator: 1.0
+    # PhysX adds these to the contact's speed in every slip it computes (not a floor): the tyre
+    # sees the true slip x v / (v + d). At 1 m/s longitudinal (0.83 of the true slip at 5 m/s,
+    # 0.91 at 10) and 0.1 lateral the car brakes within the shipped margin of mu g with ABS at
+    # 0.2 / 0.05 and starts as before; below 1 m/s Autoware's flat creep start no longer moves
+    # it (scensim issue 100: 4, 4 and 1 m/s until 2026-11-22, 0.56 of the true slip at 5 m/s)
+    min_active_slip_denominator: 1.0
+    min_passive_slip_denominator: 1.0
+    min_lateral_slip_denominator: 0.1
     sticky_tire_threshold_speed: 0.2
     sticky_tire_threshold_time: 1.0
-    # Lateral as stiff as longitudinal: at 20 the car parked across a 3 % road camber crept
-    # sideways 1.5 cm/s (0.9 m in 60 s, enough to drag NDT off and refuse an engage); at 200,
-    # 0.1 cm in 60 s (csb roadmap 059 N8).
+    # Held across a 3 % road camber (aib.steptest hold_camber, 60 s), the car slides sideways
+    # at a steady rate that falls faster than 1 / this damping: 4.9 cm at 200, 0.96 at 800,
+    # 0.13 at 3200, 0.011 at 12800; 3200 is the smallest that meets 0.1 cm (csb roadmap 059
+    # N8's target; at 20 it was 0.9 m, enough to drag NDT off), with the turning starts and
+    # the car at rest unchanged (scensim issue 102; the 0.1 cm at 200 this said before was not
+    # this car's)
     longitudinal_sticky_tire_damping: 200.0
-    lateral_sticky_tire_damping: 200.0
+    lateral_sticky_tire_damping: 3200.0
 
 # Each simulator's body for this car (roadmap 083): the geometry its asset has, the reduction
 # scaled to its wheel (the force at the road and the motor speed per road speed the real
@@ -339,7 +349,8 @@ provenance:
   brakes.max_brake_torque: {basis: "chosen past the tire limit, so a stop is friction-limited (~1 g) as on a real car"}
   brakes.dead_time: {assumed: true, basis: "a brake-by-wire booster (Model 3: Bosch iBooster) builds pressure in ~0.1-0.2 s; dead time of order 0.1 s"}
   brakes.time_constant: {assumed: true, basis: "with dead_time: ~95 % of the requested pressure 0.26 s after the request"}
-  brakes.abs: {assumed: true, basis: "tuned in Isaac (aib.steptest brake_100, 2026-10-19): PhysX slip at the tire peak is ~0.1-0.13 under braking load; release past 0.25 / reapply below 0.15 at 8 / 4 per s stopped shortest of five settings on a realistic friction curve, and never locked"}
+  brakes.abs: {assumed: true, basis: "tuned in Isaac (scensim issue 100 step b, 2026-11-22: aib.steptest brake_100 and issue 100's brake_10 and brake_20 at PhysX slip denominators 1, 1 and 0.1 m/s): release past 0.2 / reapply below 0.05 at 8 / 4 per s stopped shortest of 13 settings from 100 km/h (39.55 m) and 20 m/s (20.04 m), and from 10 m/s within 4.1 % of mu g (5.39 m), locking 2 frames; at 0.25 / 0.15 (tuned 2026-10-19 at denominators 4) it stopped 9.5 % long from 10 m/s"}
+  brakes.estimator: {assumed: true, basis: "the brake module's own slip estimate, which the ABS and TC thresholds are tuned against: 4 m/s, as since roadmap 055 (scensim issue 100: kept when PhysX's denominators fell to 1, since the car's computer cannot know the simulator's tyre; at 1 m/s the TC limits would need retuning, issue 103)"}
   powertrain.max_drive_torque: {basis: "chosen: ~8 m/s^2, beyond what Autoware asks (ideal)"}
   powertrain.drive_axle: {basis: "Model 3 RWD: one rear permanent-magnet motor (3D7), no front motor (Tesla Model 3 owner's manual, Motor Type(s))"}
   powertrain.gear_ratio: {basis: "Tesla Model 3 owner's manual: single-speed fixed gear 9.03:1; each body scales it to its own wheel (bodies.<name>.powertrain.gear_ratio)"}

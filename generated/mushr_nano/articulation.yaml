@@ -1,4 +1,4 @@
-# Generated from vehicles/mushr_nano.yaml (spec_hash a17863c6e33dfa7ed9795842fda0e0d2d83f9e7f942f9645f61a58589294e32a) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
+# Generated from vehicles/mushr_nano.yaml (spec_hash 98040b92897a8bd725c322f20851151a321bfa47a7328adb094ff05a2996d492) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
 asset:
   usd: wheeledlab_assets/data/Robots/UWRLL/mushr_nano_v2.usd
   sha256: f65756555120abb1155698813a67fd98e7a7beb8dba12101158a5cb049bc5488
@@ -19,7 +19,7 @@ asset:
     front_right_knuckle: front_right_wheel_steer_link}
 name: mushr_nano
 body: null
-spec_hash: a17863c6e33dfa7ed9795842fda0e0d2d83f9e7f942f9645f61a58589294e32a
+spec_hash: 98040b92897a8bd725c322f20851151a321bfa47a7328adb094ff05a2996d492
 physics_hash: 0b3ad486378e52c10ecb78b4885eae22db3972eb8b4a4e58795f137a03ce61f3
 frame: 'base_link: x forward, y left, z up; the rear axle''s centre on the ground'
 links:

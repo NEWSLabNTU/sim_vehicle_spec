@@ -1,4 +1,4 @@
-# Generated from vehicles/tesla_model3.yaml (spec_hash dffb1d3df1f4ae564235a87c84c1a5a4b402f4d41d265186976561b96d31273c) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
+# Generated from vehicles/tesla_model3.yaml (spec_hash 89cc738fd55929edd0e260121a80bfdde209563d8d7a97648505f557d9685f1e) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
 # CARLA 1.0's physics for the car (VehiclePhysicsControl on Chaos): applied to the ego
 # by the CARLA world server after the spawn (with SSv2) or by acb_bridge on attach
 # (standalone), and read back by acb_bridge. SI units (the appliers convert: radius to
@@ -6,8 +6,8 @@
 # is absolute in the actor frame (CARLA's axes, y right); torque_curve is the motor's,
 # normalised to max_torque (N m). ABS and traction control off, a flat steering_curve.
 # not_applied: what Chaos keeps from the blueprint's asset however it is asked.
-spec_hash: dffb1d3df1f4ae564235a87c84c1a5a4b402f4d41d265186976561b96d31273c
-physics_hash: 6384e6a29f6e27c53eb66008494bfca2e8d06d46e701810a5f8dd5ee7c29cd3c
+spec_hash: 89cc738fd55929edd0e260121a80bfdde209563d8d7a97648505f557d9685f1e
+physics_hash: 5af7c9f6347758a784b3f2a65004a3782a57527fd1cfe36e768145ba453a9d5f
 carla: '1.0'
 blueprint: vehicle.tesla.model3
 vehicle:

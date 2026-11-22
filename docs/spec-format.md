@@ -95,6 +95,7 @@ footprint and height these give.
 | `brakes.distribution` | `brake_distribution` | `dynamic_axle_load` (ideal / EBD) or `static` |
 | `brakes.dead_time`, `time_constant` | `brake_dead_time`, `brake_time_constant` | `ev`: the hydraulics, a pure delay then a first-order pressure lag, s |
 | `brakes.abs.{enabled, slip_release, slip_reapply, release_rate, apply_rate, min_speed}` | `abs_*` | `ev`: per wheel, the pressure factor falls at `release_rate` (1/s) while the wheel's slip is past `slip_release`, climbs at `apply_rate` once within `slip_reapply`; off below `min_speed` m/s |
+| `brakes.estimator.slip_offset` | `est_slip_offset` | `ev`: the brake module's slip estimate divides each wheel's slip speed by its road speed plus this (m/s, default 4.0). It is the car's own computer, so it is independent of `isaac.physx`'s slip denominators, which only the simulator's tyre sees; ABS and TC are tuned against it |
 | `powertrain.model` | `powertrain` | `ideal` or `ev`; `component`: the user's own control component (scensim roadmap 091); `physx`, `fmu` reserved (design.md) |
 | `powertrain.component` | none | `component`, required: the name of its entry point in group `scensim.vehicle_components` (sim_vehicle_ecu's `component` module) |
 | `powertrain.params` | none | `component`: a mapping handed to it as is |
@@ -430,7 +431,13 @@ packages' and warns.
 **`physics_hash`** identifies what drives the car: the same steps over a mapping of the
 sections `geometry`, `inertia`, `wheels`, `tires`, `brakes`, `powertrain`, `resistance`,
 `steering`, `suspension` (a missing one as null) and one more key, `"carla.physics"`, holding
-`carla.physics` (null without it). The pedal maps measured on CARLA carry it
+`carla.physics` (null without it). The onboard computer's tuning inside those sections is left
+out: `brakes.abs`, `brakes.estimator`, `brakes.esc`, `powertrain.traction_control` and
+`powertrain.regen_slip_control` (`spec.ONBOARD_COMPUTER`, what sim_vehicle_ecu reads). On CARLA
+the car runs no computer of ours. The CARLA world server turns CARLA's own ABS and traction
+control off and reads none of these keys, acb reads none, and `carla_physics*.yaml` holds none.
+So an ECU retune does not move the pedal maps' key, and a test on every car and body checks that
+CARLA's outputs do not depend on them. The pedal maps measured on CARLA carry it
 (autoware_sim_vehicle's `pedal_maps.yaml`), so moving a sensor does not invalidate them, and
 `carla_physics.yaml` names it.
 
@@ -446,8 +453,9 @@ Model 3 is, value for value, the spec of before bodies, so its physics_hash is t
 pedal maps were measured under.
 
 **`isaac_physics_hash`** identifies what drives the car on Isaac: the same steps over a mapping
-of two keys, `"physics_hash"` (the body's physics_hash, in hex) and `"isaac"` (the `isaac`
-section, null without it). The `isaac` section holds the PhysX vehicle's solver settings:
+of three keys, `"physics_hash"` (the body's physics_hash, in hex), `"isaac"` (the `isaac`
+section, null without it) and `"onboard"` (the onboard computer's tuning that physics_hash
+leaves out, as `section.key` to its value, for the keys the spec gives). The `isaac` section holds the PhysX vehicle's solver settings:
 substeps, slip denominators and the sticky tyre. They change the car on Isaac and not on
 CARLA, so physics_hash leaves them out, and an Isaac-only change does not move CARLA's
 artefacts. aib's rig records the hash of the body Isaac runs (`simulators.isaac`), and the

@@ -280,10 +280,12 @@ class BodyTest(unittest.TestCase):
 
     def test_0_9_16_is_the_car_the_pedal_maps_were_measured_on(self):
         # The physics_hash autoware_sim_vehicle's pedal maps record: the 0.9.16 body is the
-        # spec of before the bodies, value for value.
+        # spec of before the bodies, value for value. It was 33635ad5c861 until scensim issue
+        # 100 took the onboard computer out of physics_hash (2026-11-22), a definition change
+        # under which every CARLA output stayed byte for byte the same (OnboardComputerTest)
         e = specmod.effective(self.spec, "carla-0.9.16")
         self.assertEqual(specmod.physics_hash(e),
-                         "33635ad5c8611570ffbb9a00b495df5bdc1be06f8f6227280a4c34033acdc267")
+                         "47a1043b8cc7f790c2fc2245ae6ffdfe3d5fc4c6aa761cff0f3a30fdadaccf8f")
         self.assertEqual(e.doc["powertrain"]["gear_ratio"], 10.0)
         self.assertEqual(e.section("body")["catalogue_model"], "vehicle.tesla.model3")
         self.assertNotIn("bodies", e.doc)
@@ -619,3 +621,66 @@ class ContactPropertiesTest(unittest.TestCase):
         d = doc()
         d["tires"]["rear"] = {"friction": 1.1}
         self.assertNotEqual(specmod.physics_hash(self.body_doc(d)), specmod.physics_hash(e0))
+
+
+class OnboardComputerTest(unittest.TestCase):
+    """scensim issue 100: the onboard computer's tuning (ABS, the slip estimate, ESC, TC,
+    regen slip control) is not CARLA's physics. physics_hash, which keys CARLA's pedal maps,
+    leaves it out, and isaac_physics_hash has it. The evidence, on every shipped car and body:
+    none of CARLA's outputs (carla_physics, carla_physics_1_0) depends on it."""
+
+    PERTURB = {("brakes", "abs"): {"enabled": True, "slip_release": 0.33, "slip_reapply": 0.01,
+                                   "release_rate": 3.0, "apply_rate": 2.0, "min_speed": 0.7},
+               ("brakes", "estimator"): {"slip_offset": 2.5},
+               ("powertrain", "traction_control"): {"enabled": False, "slip_limit": 0.4,
+                                                    "slip_reapply": 0.2, "release_rate": 1.0,
+                                                    "apply_rate": 1.0}}
+
+    def cars(self):
+        for path in sorted((ROOT / "vehicles").glob("*.yaml")):
+            sp = specmod.load(path)
+            for b in specmod.bodies(sp) or [None]:
+                yield path.stem, b, sp
+
+    def perturbed(self, sp, body, sec, key, value):
+        d = copy.deepcopy(sp.source or sp.doc)
+        d.setdefault(sec, {})[key] = value
+        new = specmod.Spec(sp.path, d)
+        return specmod.effective(new, body) if body else new
+
+    @staticmethod
+    def carla_outputs(spec):
+        out = []
+        for f in (gen.carla_physics_doc, gen.carla_physics_1_0_doc):
+            o = f(spec)
+            out.append(None if o is None else {k: v for k, v in o.items()
+                                               if k not in ("spec_hash", "physics_hash")})
+        return out
+
+    def test_carlas_outputs_do_not_depend_on_the_onboard_computer(self):
+        n = 0
+        for name, body, sp in self.cars():
+            base = specmod.effective(sp, body) if body else sp
+            ref = self.carla_outputs(base)
+            for (sec, key), value in self.PERTURB.items():
+                if sec not in (sp.source or sp.doc):
+                    continue
+                new = self.perturbed(sp, body, sec, key, value)
+                self.assertEqual(self.carla_outputs(new), ref, (name, body, sec, key))
+                self.assertEqual(specmod.physics_hash(new), specmod.physics_hash(base),
+                                 (name, body, sec, key))
+                self.assertNotEqual(specmod.isaac_physics_hash(new),
+                                    specmod.isaac_physics_hash(base), (name, body, sec, key))
+                n += 1
+        self.assertGreater(n, 6)
+
+    def test_the_onboard_sections_are_exactly_the_ecus(self):
+        self.assertEqual({f"{s}.{k}" for s, k in specmod.ONBOARD_COMPUTER},
+                         {"brakes.abs", "brakes.estimator", "brakes.esc",
+                          "powertrain.traction_control", "powertrain.regen_slip_control"})
+
+    def test_a_slip_offset_must_be_a_speed(self):
+        d = doc()
+        d["brakes"]["estimator"] = {"slip_offset": 0}
+        with self.assertRaises(specmod.SpecError):
+            specmod.validate(d)

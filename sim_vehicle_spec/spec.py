@@ -648,3 +648,14 @@ def physics_hash(spec):
 def autoware_car(spec) -> bool:
     """Whether the car is an Autoware car: unless its spec says `autoware_car: false`."""
     return (spec.source or spec.doc).get("autoware_car", True) is not False
+
+
+def isaac_physics_hash(spec):
+    """The fingerprint of what drives the car on Isaac: physics_hash's mapping, plus `isaac`
+    (the PhysX vehicle's solver settings: substeps, slip denominators, sticky tyre), which
+    physics_hash leaves out so that CARLA's artefacts do not move for an Isaac-only change.
+    aib's rig records it, and the Isaac references (aib.steptest, vehicle_check on Isaac, the
+    T3 Isaac suites) write it into their results, so a comparison across two says so (scensim
+    issue 100). A body's, as physics_hash: the body Isaac runs (`simulators.isaac`)."""
+    doc = {"physics_hash": physics_hash(spec), "isaac": spec.doc.get("isaac")}
+    return hashlib.sha256(_canonical(doc).encode()).hexdigest()

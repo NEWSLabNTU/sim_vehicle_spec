@@ -399,8 +399,8 @@ reference must therefore assign all four. A scenario refers to it:
 
 ## Fingerprints
 
-Two SHA-256 fingerprints of a spec, each written as 64 lowercase hex digits
-(`sim_vehicle_spec.spec.spec_hash`, `physics_hash`). Messages often show the first 12.
+Three SHA-256 fingerprints of a spec, each written as 64 lowercase hex digits
+(`sim_vehicle_spec.spec.spec_hash`, `physics_hash`, `isaac_physics_hash`). Messages often show the first 12.
 
 **`spec_hash`** identifies the car. Its canonical form:
 
@@ -444,6 +444,15 @@ With `bodies`, `spec_hash` is the file's (every body's outputs name the same), a
 and the spec alone has none (`physics_hash` refuses it). The `carla-0.9.16` body of the Tesla
 Model 3 is, value for value, the spec of before bodies, so its physics_hash is the one its
 pedal maps were measured under.
+
+**`isaac_physics_hash`** identifies what drives the car on Isaac: the same steps over a mapping
+of two keys, `"physics_hash"` (the body's physics_hash, in hex) and `"isaac"` (the `isaac`
+section, null without it). The `isaac` section holds the PhysX vehicle's solver settings:
+substeps, slip denominators and the sticky tyre. They change the car on Isaac and not on
+CARLA, so physics_hash leaves them out, and an Isaac-only change does not move CARLA's
+artefacts. aib's rig records the hash of the body Isaac runs (`simulators.isaac`), and the
+Isaac references (aib.steptest, vehicle_check on Isaac, the T3 Isaac suites) write it into
+their results, so a comparison across two hashes says so. Like physics_hash, it is a body's.
 
 ## Version 2
 

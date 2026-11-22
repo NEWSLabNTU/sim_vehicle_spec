@@ -370,6 +370,29 @@ class HashTest(unittest.TestCase):
         d["tires"]["friction"] = 0.9
         self.assertNotEqual(specmod.physics_hash(self.load(d)), phys)
 
+    def test_isaacs_settings_move_the_isaac_physics_hash_only(self):
+        """scensim issue 100: a slip denominator changes the car on Isaac, not on CARLA."""
+        base = self.load(doc())
+        phys, iso = specmod.physics_hash(base), specmod.isaac_physics_hash(base)
+        self.assertNotEqual(iso, phys)
+        d = doc()
+        d["isaac"]["physx"]["min_active_slip_denominator"] = 0.5
+        changed = self.load(d)
+        self.assertEqual(specmod.physics_hash(changed), phys)
+        self.assertNotEqual(specmod.isaac_physics_hash(changed), iso)
+        # what moves physics_hash moves it too
+        d = doc()
+        d["tires"]["friction"] = 0.9
+        self.assertNotEqual(specmod.isaac_physics_hash(self.load(d)), iso)
+        # and a sensor moves neither
+        d = doc()
+        d["sensors"]["gnss"]["mount"]["x"] = 0.5
+        self.assertEqual(specmod.isaac_physics_hash(self.load(d)), iso)
+
+    def test_a_spec_with_bodies_has_no_isaac_physics_hash_of_its_own(self):
+        with self.assertRaises(specmod.SpecError):
+            specmod.isaac_physics_hash(specmod.Spec(SPEC, doc()))
+
 
 class GeneratedTest(unittest.TestCase):
     def test_the_committed_outputs_are_current(self):

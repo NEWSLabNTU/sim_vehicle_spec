@@ -1,9 +1,12 @@
-# Generated from vehicles/mushr_nano.yaml (spec_hash cb73d8e54726b95e9ad77f48404da29cdbd0b488b1368ddd994949543a747338) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
+# Generated from vehicles/mushr_nano.yaml (spec_hash 70fc756027264a2ea0ae4dcc41eeb5aa6df60a43917f25aeff6e42dbb813e26c) by sim_vehicle_spec.gen (`just generate`): do not edit; change the spec and regenerate.
 asset:
   usd: wheeledlab_assets/data/Robots/UWRLL/mushr_nano_v2.usd
   sha256: f65756555120abb1155698813a67fd98e7a7beb8dba12101158a5cb049bc5488
   source: WheeledLab (github.com/NEWSLabNTU/WheeledLab, branch isaaclab-3.0, a35060c)
   licence: BSD-3-Clause (The Wheeled Lab Project Developers)
+  spawn: {solver_position_iteration_count: 4, solver_velocity_iteration_count: 0, sleep_threshold: 0.005,
+    stabilization_threshold: 0.001, rigid_body_enabled: true, max_linear_velocity: 1000.0, max_angular_velocity: 100000.0,
+    max_depenetration_velocity: 100.0, max_contact_impulse: 0.0, enable_gyroscopic_forces: true}
   joints: {front_left_suspension: front_left_wheel_suspension, front_right_suspension: front_right_wheel_suspension,
     rear_left_suspension: back_left_wheel_suspension, rear_right_suspension: back_right_wheel_suspension,
     front_left_steer: front_left_wheel_steer, front_right_steer: front_right_wheel_steer, front_left_spin: front_left_wheel_throttle,
@@ -15,8 +18,8 @@ asset:
     front_right_knuckle: front_right_wheel_steer_link}
 name: mushr_nano
 body: null
-spec_hash: cb73d8e54726b95e9ad77f48404da29cdbd0b488b1368ddd994949543a747338
-physics_hash: 0566843861a4d0d4f3c95c93ed298b4bc37e8d74542ea70504d1278e12a32bb8
+spec_hash: 70fc756027264a2ea0ae4dcc41eeb5aa6df60a43917f25aeff6e42dbb813e26c
+physics_hash: 13071b87ae60792ed134c81ce9c719ab9b9fe1652adcac198162efebec8480b9
 frame: 'base_link: x forward, y left, z up; the rear axle''s centre on the ground'
 links:
   chassis:

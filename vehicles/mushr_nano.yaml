@@ -25,6 +25,20 @@ body:
     sha256: f65756555120abb1155698813a67fd98e7a7beb8dba12101158a5cb049bc5488
     source: "WheeledLab (github.com/NEWSLabNTU/WheeledLab, branch isaaclab-3.0, a35060c)"
     licence: "BSD-3-Clause (The Wheeled Lab Project Developers)"
+    # what stock's config sets over the USD at spawn (wheeledlab_assets/mushr.py, MUSHR_CFG,
+    # which MUSHR_SUS_2WD_CFG keeps): the USD itself authors 32 position and 1 velocity solver
+    # iterations (scensim 094 P3: read alone, the car ran 8 times stock's iterations)
+    spawn:
+      solver_position_iteration_count: 4
+      solver_velocity_iteration_count: 0
+      sleep_threshold: 0.005
+      stabilization_threshold: 0.001
+      rigid_body_enabled: true
+      max_linear_velocity: 1000.0          # m/s
+      max_angular_velocity: 100000.0       # deg/s, as Isaac Lab's
+      max_depenetration_velocity: 100.0
+      max_contact_impulse: 0.0
+      enable_gyroscopic_forces: true
     joints:
       front_left_suspension: front_left_wheel_suspension
       front_right_suspension: front_right_wheel_suspension

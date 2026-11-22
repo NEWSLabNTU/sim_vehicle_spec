@@ -189,6 +189,29 @@ class ArticulationTest(unittest.TestCase):
         with self.assertRaisesRegex(specmod.SpecError, "64 hex"):
             specmod.validate(self.with_asset(sha256="abc"))
 
+    def test_an_assets_spawn_properties_are_its_physics(self):
+        """094 P3: the asset's config (its solver iterations, ...) travels with it, is checked,
+        and moves the physics hash; a body without it is unchanged."""
+        plain = self.with_asset()
+        doc = self.with_asset(spawn={"solver_position_iteration_count": 4,
+                                     "solver_velocity_iteration_count": 0,
+                                     "enable_gyroscopic_forces": True,
+                                     "max_angular_velocity": 100000.0})
+        specmod.validate(doc)
+        eff = lambda d: art.articulation_doc(specmod.effective(       # noqa: E731
+            specmod.Spec(path=self.s.path, doc=d), "carla-0.9.16"))
+        d, d0 = eff(doc), eff(plain)
+        self.assertEqual(d["asset"]["spawn"]["solver_position_iteration_count"], 4)
+        self.assertNotIn("spawn", d0["asset"])
+        self.assertNotEqual(d["physics_hash"], d0["physics_hash"])
+        for bad, msg in (({"solver_iterations": 4}, "not one of"),
+                         ({"solver_position_iteration_count": 4.5}, "not an integer"),
+                         ({"solver_velocity_iteration_count": -1}, "not an integer >= 0"),
+                         ({"enable_gyroscopic_forces": 1}, "not a boolean"),
+                         ({"sleep_threshold": "low"}, "not a number")):
+            with self.assertRaisesRegex(specmod.SpecError, msg):
+                specmod.validate(self.with_asset(spawn=bad))
+
     def test_the_steer_law(self):
         self.assertEqual(self.d["actuation"]["steer_law"], "ackermann")
         d = self.mushr_like(steer_law="tan")

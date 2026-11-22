@@ -62,7 +62,18 @@ SECTIONS = {
 # `joints` and `links` map the generated body's names to the asset's (every joint and every
 # wheel, upright and knuckle the consumer reads); the spec's geometry and masses are the
 # asset's, and the consumer checks them against it
-ASSET_KEYS = ("usd", "sha256", "source", "licence", "joints", "links")
+ASSET_KEYS = ("usd", "sha256", "source", "licence", "joints", "links", "spawn")
+# body.asset.spawn: what the asset's own config sets over its USD when it is spawned (an Isaac
+# Lab ArticulationCfg's articulation and rigid-body properties): an asset's config is part of
+# the car, as its USD is (scensim 094 P3: the MuSHR's USD authors 32 position and 1 velocity
+# solver iterations, its config 4 and 0, and a consumer that read the USD alone ran 8 times the
+# iterations). Names as Isaac Lab's ArticulationRootPropertiesCfg and RigidBodyPropertiesCfg
+# have them (max_angular_velocity in deg/s, as there); each is optional
+SPAWN_KEYS = {"solver_position_iteration_count": int, "solver_velocity_iteration_count": int,
+              "sleep_threshold": float, "stabilization_threshold": float,
+              "rigid_body_enabled": bool, "max_linear_velocity": float,
+              "max_angular_velocity": float, "max_depenetration_velocity": float,
+              "max_contact_impulse": float, "enable_gyroscopic_forces": bool}
 # articulation.*_drive: a joint drive. dc_motor: Isaac Lab's DCMotorCfg (an explicit actuator:
 # the velocity drive's torque clipped to the motor's torque-speed line, saturation_effort at
 # stall, zero at velocity_limit, and to effort_limit)
@@ -307,6 +318,20 @@ def validate(doc, where="spec"):
                 fail(f"body.asset: missing {k}")
         if not (isinstance(asset["sha256"], str) and len(asset["sha256"]) == 64):
             fail("body.asset.sha256: the file's sha256, 64 hex digits")
+        spawn = asset.get("spawn")
+        if spawn is not None:
+            if not isinstance(spawn, dict):
+                fail("body.asset.spawn is not a mapping")
+            for k, v in spawn.items():
+                want = SPAWN_KEYS.get(k)
+                if want is None:
+                    fail(f"body.asset.spawn.{k}: not one of {', '.join(SPAWN_KEYS)}")
+                ok = (isinstance(v, bool) if want is bool else
+                      isinstance(v, int) and not isinstance(v, bool) and v >= 0 if want is int
+                      else isinstance(v, (int, float)) and not isinstance(v, bool))
+                if not ok:
+                    kind = {bool: "a boolean", int: "an integer >= 0", float: "a number"}[want]
+                    fail(f"body.asset.spawn.{k}: {v!r} is not {kind}")
     if "steer_law" in art and art["steer_law"] not in STEER_LAWS:
         fail(f"articulation.steer_law {art['steer_law']!r}: one of {', '.join(STEER_LAWS)}")
     _check_mount(doc["sensor_kit"]["mount"], "sensor_kit.mount", fail)
@@ -642,6 +667,8 @@ def physics_hash(spec):
     asset = (spec.doc.get("body") or {}).get("asset")
     if asset:       # the asset the car is: its bytes are its physics
         doc["body.asset"] = {"usd": asset["usd"], "sha256": asset["sha256"]}
+        if asset.get("spawn"):      # how it is spawned is its physics too (094 P3)
+            doc["body.asset"]["spawn"] = asset["spawn"]
     return hashlib.sha256(_canonical(doc).encode()).hexdigest()
 
 

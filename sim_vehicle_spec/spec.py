@@ -51,11 +51,22 @@ SECTIONS = {
     "carla": ((), ("physics",)),
     # The car as an articulation (scensim 092 K2.2b): drives and contact that the generator
     # would otherwise choose (sim_vehicle_spec.articulation names its defaults)
-    "articulation": ((), ("spin_drive", "steer_drive", "wheel_contact")),
+    # (scensim 094 P2: a car whose model is its articulation -- WheeledLab's MuSHR -- names its
+    # undriven wheels' and suspension's drives and its steer law too)
+    "articulation": ((), ("spin_drive", "undriven_spin_drive", "steer_drive",
+                          "suspension_drive", "wheel_contact", "steer_law")),
 }
-# articulation.spin_drive / steer_drive: a joint drive
-ARTICULATION_DRIVE_KEYS = ("type", "stiffness", "damping", "effort_limit", "velocity_limit")
-ARTICULATION_DRIVE_TYPES = ("effort", "velocity", "position")
+# articulation.*_drive: a joint drive. dc_motor: Isaac Lab's DCMotorCfg (an explicit actuator:
+# the velocity drive's torque clipped to the motor's torque-speed line, saturation_effort at
+# stall, zero at velocity_limit, and to effort_limit)
+ARTICULATION_DRIVE_KEYS = ("type", "stiffness", "damping", "effort_limit", "velocity_limit",
+                           "friction", "saturation_effort")
+ARTICULATION_DRIVE_TYPES = ("effort", "velocity", "position", "dc_motor")
+ARTICULATION_DRIVES = ("spin_drive", "undriven_spin_drive", "steer_drive", "suspension_drive")
+# articulation.steer_law: what the front steer joints' targets are for a bicycle angle d.
+# ackermann: each wheel's Ackermann angle (steering.ackermann true, the default); parallel: d on
+# both; tan: tan(d) on both (WheeledLab's RCCarRWDAction, as written: a target of tan(d) rad)
+STEER_LAWS = ("ackermann", "parallel", "tan")
 # isaac.physx: the PhysX vehicle's solver settings
 PHYSX_KEYS = ("substeps", "substep_threshold_speed", "min_active_slip_denominator",
               "min_passive_slip_denominator", "min_lateral_slip_denominator",
@@ -132,7 +143,9 @@ SUBSECTIONS = {
     ("carla", "physics"): CARLA_PHYSICS_KEYS,
     ("carla", "physics_1_0"): CARLA_PHYSICS_1_0_KEYS,
     ("articulation", "spin_drive"): ARTICULATION_DRIVE_KEYS,
+    ("articulation", "undriven_spin_drive"): ARTICULATION_DRIVE_KEYS,
     ("articulation", "steer_drive"): ARTICULATION_DRIVE_KEYS,
+    ("articulation", "suspension_drive"): ARTICULATION_DRIVE_KEYS + ("target",),
     ("articulation", "wheel_contact"): CONTACT_KEYS,
 }
 # A body's carla: the calibration of its simulator's version
@@ -256,11 +269,21 @@ def validate(doc, where="spec"):
             extra = set(v) - set(keys)
             if extra:
                 fail(f"{section}.{k}: unknown key(s) {sorted(extra)}")
-    for k in ("spin_drive", "steer_drive"):
-        d = (doc.get("articulation") or {}).get(k)
-        if d is not None and d.get("type") not in ARTICULATION_DRIVE_TYPES:
+    art = doc.get("articulation") or {}
+    for k in ARTICULATION_DRIVES:
+        d = art.get(k)
+        if d is None:
+            continue
+        if d.get("type") not in ARTICULATION_DRIVE_TYPES:
             fail(f"articulation.{k}.type {d.get('type')!r}: one of "
                  f"{', '.join(ARTICULATION_DRIVE_TYPES)}")
+        if (d.get("type") == "dc_motor") != ("saturation_effort" in d):
+            fail(f"articulation.{k}: saturation_effort is a dc_motor's, and a dc_motor's needs "
+                 "it")
+        if d.get("type") == "dc_motor" and k not in ("spin_drive", "undriven_spin_drive"):
+            fail(f"articulation.{k}: a dc_motor drives a wheel's spin joint only")
+    if "steer_law" in art and art["steer_law"] not in STEER_LAWS:
+        fail(f"articulation.steer_law {art['steer_law']!r}: one of {', '.join(STEER_LAWS)}")
     _check_mount(doc["sensor_kit"]["mount"], "sensor_kit.mount", fail)
     pt = doc["powertrain"]
     model = pt["model"]
@@ -587,4 +610,8 @@ def physics_hash(spec):
                         f"body one of {', '.join(spec.doc['bodies'])}")
     doc = {k: spec.doc.get(k) for k in PHYSICS_SECTIONS}
     doc["carla.physics"] = spec.section("carla").get("physics")
+    # an articulation's drives are its car's physics (scensim 094 P2), but only a spec that
+    # names them carries the key: every other spec's fingerprint, and what it keys, unchanged
+    if spec.doc.get("articulation"):
+        doc["articulation"] = spec.doc["articulation"]
     return hashlib.sha256(_canonical(doc).encode()).hexdigest()

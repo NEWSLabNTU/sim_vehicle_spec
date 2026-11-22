@@ -74,6 +74,10 @@ def articulation_doc(spec):
     power, brakes = spec.section("powertrain"), spec.section("brakes")
     body = spec.section("body")
     art = spec.section("articulation")
+    # the steer joints' travel: the largest target the steer law gives (tan's: tan(max))
+    steer_max = geo["max_steer_angle"]
+    if _steer_law(spec) == "tan":
+        steer_max = math.tan(steer_max)
 
     L, T, r, w = geo["wheel_base"], geo["wheel_tread"], geo["wheel_radius"], geo["wheel_width"]
     m_total, m_corner = inertia["mass"], wheels["mass"]
@@ -133,7 +137,7 @@ def articulation_doc(spec):
         joints[f"{c}_suspension"] = {
             "type": "prismatic", "parent": "chassis", "child": f"{c}_upright", "origin": hub,
             "axis": [0, 0, 1], "limits": [-susp["travel"] / 2, susp["travel"] / 2],
-            "drive": {"type": "position", "stiffness": k, "damping": c_damp, "target": -sag}}
+            "drive": _suspension_drive(art, k, c_damp, sag)}
         parent = f"{c}_upright"
         if is_front:
             links[f"{c}_knuckle"] = {"mass": small, "com": hub, "inertia": small_I,
@@ -155,7 +159,7 @@ def articulation_doc(spec):
                 k_steer = steer
             joints[f"{c}_steer"] = {
                 "type": "revolute", "parent": parent, "child": f"{c}_knuckle", "origin": hub,
-                "axis": [0, 0, 1], "limits": [-geo["max_steer_angle"], geo["max_steer_angle"]],
+                "axis": [0, 0, 1], "limits": [-steer_max, steer_max],
                 "drive": dict(k_steer)}
             parent = f"{c}_knuckle"
         mu = _axle_friction(spec, "front" if is_front else "rear")
@@ -166,7 +170,9 @@ def articulation_doc(spec):
                                "mass": m_wheel, "com": hub, "inertia": wheel_I,
                                "position": hub, "contact": contact}
         driven = _driven(power, is_front)
-        if art.get("spin_drive"):
+        if not driven and art.get("undriven_spin_drive"):
+            spin = dict(art["undriven_spin_drive"])
+        elif art.get("spin_drive"):
             spin = dict(art["spin_drive"])
         else:
             spin = {"type": "effort", "stiffness": 0.0, "damping": 0.0,
@@ -186,9 +192,10 @@ def articulation_doc(spec):
         "frame": "base_link: x forward, y left, z up; the rear axle's centre on the ground",
         "links": links, "joints": joints,
         "actuation": {
-            "steer": "bicycle angle to the front steer joints' targets"
-                     + (", as Ackermann angles" if spec.section("steering").get("ackermann",
-                                                                             True) else ""),
+            "steer": "bicycle angle to the front steer joints' targets" + {
+                "ackermann": ", as Ackermann angles", "parallel": ", the same on both",
+                "tan": ", tan of it on both"}[_steer_law(spec)],
+            "steer_law": _steer_law(spec),
             "wheel_base": L, "wheel_tread": T, "wheel_radius": r,
             "max_steer_angle": geo["max_steer_angle"],
             "max_brake_torque": brakes["max_brake_torque"],
@@ -198,8 +205,12 @@ def articulation_doc(spec):
             f"unsprung mass split: {1 - 2 * UPRIGHT_SHARE:g} wheel and {UPRIGHT_SHARE:g} each "
             f"upright and knuckle (rear {1 - UPRIGHT_SHARE:g} wheel)",
             "wheel spin inertia 0.5 x wheels.mass x r^2 (the spec's), whatever the link's mass",
-            "suspension drive targets minus the static sag (q > 0 compresses), so the car "
-            "rests at its design height (q = 0)",
+            ("suspension drive: the spec's articulation.suspension_drive"
+             + ("" if "target" in (art.get("suspension_drive") or {}) else
+                ", targeting minus the static sag")
+             if art.get("suspension_drive") else
+             "suspension drive targets minus the static sag (q > 0 compresses), so the car "
+             "rests at its design height (q = 0)"),
             "the chassis box encloses the wheels: the consumer disables self-collisions",
             "chassis centre of mass: where the whole car's is the spec's, the unsprung masses "
             "at the hubs; the corners' sprung masses split from it",
@@ -213,10 +224,33 @@ def articulation_doc(spec):
              f"{STEER_HOLD_RAD:g} rad; damping ratio {STEER_DAMPING_RATIO:g} on the knuckle and "
              "wheel's inertia about z"),
             ("spin drive: the spec's articulation.spin_drive" if art.get("spin_drive") else
-             "spin drive: effort (the consumer applies the powertrain's and brakes' torque)"),
+             "spin drive: effort (the consumer applies the powertrain's and brakes' torque)")
+            + ("; undriven wheels: articulation.undriven_spin_drive"
+               if art.get("undriven_spin_drive") else ""),
+            f"steer law: {_steer_law(spec)}"
+            + (" (the spec's articulation.steer_law)" if art.get("steer_law") else
+               " (steering.ackermann)"),
             "tyre: a rigid cylinder in Coulomb contact, no slip curve, no load sensitivity",
         ],
     }
+
+
+def _steer_law(spec):
+    art = spec.section("articulation") or {}
+    if art.get("steer_law"):
+        return art["steer_law"]
+    return "ackermann" if spec.section("steering").get("ackermann", True) else "parallel"
+
+
+def _suspension_drive(art, k, c_damp, sag):
+    """The suspension's drive: the spec's articulation.suspension_drive (its target, else minus
+    the sag), or the spring and damper of the ride frequency targeting minus the sag."""
+    given = art.get("suspension_drive")
+    if not given:
+        return {"type": "position", "stiffness": k, "damping": c_damp, "target": -sag}
+    d = dict(given)
+    d.setdefault("target", -sag)
+    return d
 
 
 def _driven(power, is_front):

@@ -131,6 +131,58 @@ class ArticulationTest(unittest.TestCase):
         self.assertEqual(d["links"]["front_left_wheel"]["contact"]["static_friction"], 0.4)
         self.assertEqual(d["links"]["front_left_wheel"]["contact"]["combine"], "multiply")
 
+    def mushr_like(self, **art_):
+        doc = copy.deepcopy(self.s.source)
+        doc["articulation"] = art_
+        specmod.validate(doc)
+        return art.articulation_doc(specmod.effective(specmod.Spec(path=self.s.path, doc=doc),
+                                                      "carla-0.9.16"))
+
+    def test_a_dc_motor_on_the_driven_wheels_and_passive_undriven_ones(self):
+        # WheeledLab's MuSHR 2WD (scensim 094 P2): DCMotorCfg on the rear, the fronts passive
+        dc = {"type": "dc_motor", "stiffness": 0.0, "damping": 1000.0, "effort_limit": 0.5,
+              "saturation_effort": 1.05, "velocity_limit": 450.0, "friction": 0.0}
+        free = {"type": "effort", "stiffness": 0.0, "damping": 0.0, "effort_limit": 0.0}
+        d = self.mushr_like(spin_drive=dc, undriven_spin_drive=free)
+        self.assertEqual(d["joints"]["rear_left_spin"]["drive"], dc)
+        self.assertEqual(d["joints"]["front_right_spin"]["drive"], free)
+
+    def test_a_suspension_drive_keeps_its_target_or_targets_the_sag(self):
+        rigid = {"type": "position", "stiffness": 1e8, "damping": 0.0, "friction": 0.5,
+                 "target": 0.0}
+        d = self.mushr_like(suspension_drive=rigid)
+        self.assertEqual(d["joints"]["front_left_suspension"]["drive"], rigid)
+        sag = -self.d["joints"]["front_left_suspension"]["drive"]["target"]
+        d = self.mushr_like(suspension_drive={"type": "position", "stiffness": 1e8,
+                                              "damping": 0.0})
+        self.assertAlmostEqual(d["joints"]["front_left_suspension"]["drive"]["target"], -sag)
+
+    def test_the_articulation_is_in_the_physics_hash_only_when_named(self):
+        h = specmod.physics_hash(self.s)
+        self.assertEqual(h, self.d["physics_hash"])
+        d = self.mushr_like(steer_law="tan")
+        self.assertNotEqual(d["physics_hash"], h)
+        self.assertNotEqual(self.mushr_like(steer_law="parallel")["physics_hash"],
+                            d["physics_hash"])
+
+    def test_the_steer_law(self):
+        self.assertEqual(self.d["actuation"]["steer_law"], "ackermann")
+        d = self.mushr_like(steer_law="tan")
+        self.assertEqual(d["actuation"]["steer_law"], "tan")
+        m = self.s.section("geometry")["max_steer_angle"]
+        self.assertAlmostEqual(d["joints"]["front_left_steer"]["limits"][1], math.tan(m))
+        self.assertEqual(self.d["joints"]["front_left_steer"]["limits"][1], m)
+        with self.assertRaisesRegex(specmod.SpecError, "steer_law 'cubic'"):
+            self.mushr_like(steer_law="cubic")
+
+    def test_a_dc_motor_needs_its_saturation_and_drives_a_wheel_only(self):
+        with self.assertRaisesRegex(specmod.SpecError, "saturation_effort"):
+            self.mushr_like(spin_drive={"type": "dc_motor", "damping": 1.0})
+        with self.assertRaisesRegex(specmod.SpecError, "saturation_effort"):
+            self.mushr_like(spin_drive={"type": "effort", "saturation_effort": 1.0})
+        with self.assertRaisesRegex(specmod.SpecError, "spin joint only"):
+            self.mushr_like(steer_drive={"type": "dc_motor", "saturation_effort": 1.0})
+
     def test_bad_drive_type_refused(self):
         doc = copy.deepcopy(self.s.source)
         doc["articulation"] = {"spin_drive": {"type": "torque"}}

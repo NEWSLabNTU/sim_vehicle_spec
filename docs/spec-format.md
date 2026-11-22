@@ -155,6 +155,32 @@ header line `Not applied on CARLA: body.contact ...` in `carla_physics.yaml`.
 Every rig field is a `VehicleParams` field (autoware_isaac_bridge's `aib/params.py`), so an
 ego config's `vehicle:` override uses the same names.
 
+### The car as an articulation
+
+`generated/<name>/articulation[_<body>].yaml` is the car as rigid bodies and joints (scensim
+092 K2.2b): a chassis, and per corner a prismatic suspension, a front steer and a wheel spin
+joint. What it chooses is said in its `choices:`. The optional `articulation:` section names
+what a car built that way would otherwise get from the generator:
+
+| key | what |
+|---|---|
+| `spin_drive` | the wheels' spin drive: the driven ones' when `undriven_spin_drive` is given, else all four's (default: an effort drive the consumer applies torque through) |
+| `undriven_spin_drive` | the undriven wheels' (`powertrain.drive_axle`), e.g. a passive joint |
+| `steer_drive` | the front steer joints' drive (default: as stiff as a rack) |
+| `suspension_drive` | the suspension's drive; its `target` defaults to minus the static sag (default: the ride frequency's spring and the damping ratio's damper) |
+| `wheel_contact` | the tyre's material (default: `tires.friction`, combined by multiply) |
+| `steer_law` | the front steer targets for a bicycle angle d: `ackermann` (each wheel's angle), `parallel` (d on both) or `tan` (tan(d) on both); default `ackermann`, or `parallel` when `steering.ackermann` is false. Under `tan` the steer joints' travel is tan(`max_steer_angle`) |
+
+A drive has `type` (`effort`, `velocity`, `position`, or `dc_motor`), `stiffness`, `damping`,
+`effort_limit`, `velocity_limit` and `friction`. `dc_motor` is Isaac Lab's DC motor (a velocity
+drive whose torque is clipped to the motor's torque-speed line, `saturation_effort` at stall and
+zero at `velocity_limit`, and to `effort_limit`). It needs `saturation_effort`, which only it
+takes, and drives a spin joint only. WheeledLab's MuSHR (scensim 094 P2) is the case: a DC motor
+on its rear wheels, passive fronts, a rigid suspension and `tan` steering.
+
+A spec that has an `articulation:` section carries it in its `physics_hash`; one without has the
+same fingerprint as before the section existed.
+
 ## Sensors
 
 ```yaml

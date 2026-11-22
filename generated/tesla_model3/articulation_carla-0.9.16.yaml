@@ -155,8 +155,9 @@ joints:
     axis: [0, 1, 0]
     driven: true
     drive: {type: effort, stiffness: 0.0, damping: 0.0, effort_limit: 3000.0, velocity_limit: 159.174027782}
-actuation: {steer: 'bicycle angle to the front steer joints'' targets, as Ackermann angles', wheel_base: 3.005,
-  wheel_tread: 1.667, wheel_radius: 0.37, max_steer_angle: 0.7, max_brake_torque: 3000.0, drive_axle: rear}
+actuation: {steer: 'bicycle angle to the front steer joints'' targets, as Ackermann angles', steer_law: ackermann,
+  wheel_base: 3.005, wheel_tread: 1.667, wheel_radius: 0.37, max_steer_angle: 0.7, max_brake_torque: 3000.0,
+  drive_axle: rear}
 choices: ['unsprung mass split: 0.8 wheel and 0.1 each upright and knuckle (rear 0.9 wheel)', 'wheel spin
     inertia 0.5 x wheels.mass x r^2 (the spec''s), whatever the link''s mass', 'suspension drive targets
     minus the static sag (q > 0 compresses), so the car rests at its design height (q = 0)', 'the chassis
@@ -166,5 +167,5 @@ choices: ['unsprung mass split: 0.8 wheel and 0.1 each upright and knuckle (rear
   'static sag 0.09707 m of travel +-0.1 m: a lifted wheel''s spring reaches its free length 0.00293 m
     before the droop stop', 'steer drive: the front tyre''s largest scrub torque (mu N w / 4) moves it
     0.001 rad; damping ratio 1 on the knuckle and wheel''s inertia about z', 'spin drive: effort (the
-    consumer applies the powertrain''s and brakes'' torque)', 'tyre: a rigid cylinder in Coulomb contact,
-    no slip curve, no load sensitivity']
+    consumer applies the powertrain''s and brakes'' torque)', 'steer law: ackermann (steering.ackermann)',
+  'tyre: a rigid cylinder in Coulomb contact, no slip curve, no load sensitivity']
